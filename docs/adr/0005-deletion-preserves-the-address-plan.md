@@ -4,4 +4,4 @@ Deleting a Device also deletes its Interfaces and the Cables attached to them, b
 
 ## Consequences
 
-- When a Free-text Section is removed from a Page Template, its content is deleted from every Page using that template. It can only be recovered from History.
+- When a Free-text Section is removed from a Page Template, its content is deleted from every Page using that template. It can only be recovered from History. Before saving, the template editor warns how many Pages have content in that section, so the loss is never silent.
