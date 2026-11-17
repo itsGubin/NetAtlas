@@ -119,11 +119,11 @@ A Page not belonging to any item, such as "How the guest Wi-Fi works", that can 
 _Avoid_: Wiki page, article
 
 **Page Template**:
-A skeleton of headings, Live Fields and Free-text Sections that shapes Item Pages; editing it updates every Page using it. Each Device Type can have its own, with one default for everything else.
+A skeleton of headings, Live Fields and Free-text Sections that shapes Item Pages; editing it updates every Page using it. Each kind of item has its own default, and each Device Type can override the default for Devices.
 _Avoid_: Layout, blueprint
 
 **Free-text Section**:
-A named part of a Page Template whose content is written per Page and kept when the template changes.
+A named part of a Page Template whose content is written per Page and kept when the template changes, unless the section itself is removed.
 _Avoid_: Slot, block, custom field
 
 **Live Field**:
