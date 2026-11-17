@@ -1,0 +1,13 @@
+{% extends "netatlas/base.html" %}{% load i18n %}
+{% block title %}{% translate "Status" %}{% endblock %}
+{% block content %}
+<h1>{% translate "Status" %}</h1>
+<dl>
+  <dt>{% translate "Version" %}</dt>
+  <dd>{{ status.version }}</dd>
+  <dt>{% translate "Database" %}</dt>
+  <dd data-database-state="{{ status.database }}">
+    {% if status.database == "up" %}{% translate "Reachable" %}{% else %}{% translate "Unreachable" %}{% endif %}
+  </dd>
+</dl>
+{% endblock %}
