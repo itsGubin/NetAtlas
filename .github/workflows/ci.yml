@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_DB: netatlas
+          POSTGRES_USER: netatlas
+          POSTGRES_PASSWORD: netatlas
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U netatlas"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+      - run: sudo apt-get update && sudo apt-get install -y gettext
+      - run: pip install -e ".[dev]"
+      - name: Tests
+        run: pytest
+      - name: Service-layer import contract (ADR 0003)
+        run: lint-imports
+      - name: Translatable strings extract cleanly
+        run: NETATLAS_DEBUG=true python manage.py makemessages -l de --ignore=.venv
+
+  compose-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Write .env
+        run: |
+          echo "NETATLAS_SECRET_KEY=ci-$(openssl rand -hex 32)" > .env
+          echo "NETATLAS_DB_PASSWORD=ci-$(openssl rand -hex 16)" >> .env
+      - name: Start the stack and wait for it to be healthy
+        run: docker compose up -d --build --wait --wait-timeout 120
+      - name: Status reports the database as up
+        run: |
+          curl -fsS http://localhost:8000/api/status/ | tee status.json
+          python3 -c "import json; s = json.load(open('status.json')); assert s['database'] == 'up', s"
+      - name: Pages and static files are served
+        run: |
+          curl -fsS http://localhost:8000/ | grep -q "NetAtlas"
+          curl -fsS -o /dev/null http://localhost:8000/status/
+          curl -fsS -o /dev/null "http://localhost:8000$(curl -fsS http://localhost:8000/ | grep -o '/static/netatlas/vendor/htmx[^"]*')"
+      - name: Stays healthy under a custom host name
+        run: NETATLAS_ALLOWED_HOSTS=netatlas.example.test docker compose up -d --wait --wait-timeout 60 app
+      - name: Logs on failure
+        if: failure()
+        run: docker compose logs

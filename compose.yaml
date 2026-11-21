@@ -1,0 +1,39 @@
+# NetAtlas: copy .env.example to .env, set a secret key, then `docker compose up -d`.
+services:
+  app:
+    build: .
+    image: netatlas:local
+    restart: unless-stopped
+    ports:
+      - "${NETATLAS_PORT:-8000}:8000"
+    environment:
+      NETATLAS_SECRET_KEY: ${NETATLAS_SECRET_KEY:?Set NETATLAS_SECRET_KEY in .env}
+      NETATLAS_ALLOWED_HOSTS:
+      NETATLAS_DB_HOST: db
+      NETATLAS_DB_NAME: netatlas
+      NETATLAS_DB_USER: netatlas
+      NETATLAS_DB_PASSWORD: ${NETATLAS_DB_PASSWORD:?Set NETATLAS_DB_PASSWORD in .env}
+    volumes:
+      - media:/data/media
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:18
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: netatlas
+      POSTGRES_USER: netatlas
+      POSTGRES_PASSWORD: ${NETATLAS_DB_PASSWORD:?Set NETATLAS_DB_PASSWORD in .env}
+    volumes:
+      - db:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U netatlas -d netatlas"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  db:
+  media:

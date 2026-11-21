@@ -1,0 +1,46 @@
+[project]
+name = "netatlas"
+dynamic = ["version"]
+description = "Self-hosted network documentation: devices, cabling, VLANs, IP address space and the pages that explain them."
+requires-python = ">=3.12"
+license = "AGPL-3.0-only"
+dependencies = [
+    "django>=6.1,<6.2",
+    "djangorestframework>=3.18,<3.19",
+    "psycopg[binary]>=3.3,<3.4",
+    "gunicorn>=27,<28",
+    "whitenoise>=6,<7",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=9",
+    "pytest-django>=4.14",
+    "import-linter>=2.16",
+]
+
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.dynamic]
+version = { attr = "netatlas.__version__" }
+
+[tool.setuptools.packages.find]
+include = ["netatlas*"]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "netatlas.config.test_settings"
+django_find_project = false
+pythonpath = ["."]
+testpaths = ["tests"]
+
+[tool.importlinter]
+root_package = "netatlas"
+
+[[tool.importlinter.contracts]]
+name = "Adapters reach the domain only through services (ADR 0003)"
+type = "forbidden"
+source_modules = ["netatlas.web", "netatlas.api"]
+forbidden_modules = ["netatlas.**.models"]
+allow_indirect_imports = true

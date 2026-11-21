@@ -1,0 +1,21 @@
+{% load i18n static %}{% get_current_language as LANGUAGE_CODE %}<!doctype html>
+<html lang="{{ LANGUAGE_CODE }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}NetAtlas{% endblock %}</title>
+  <script src="{% static 'netatlas/vendor/htmx.min.js' %}" defer></script>
+</head>
+<body hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+  <header>
+    <a href="{% url 'web:home' %}">NetAtlas</a>
+    <nav aria-label="{% translate 'Main' %}">
+      <ul>
+        <li><a href="{% url 'web:home' %}">{% translate "Home" %}</a></li>
+        <li><a href="{% url 'web:status' %}">{% translate "Status" %}</a></li>
+      </ul>
+    </nav>
+  </header>
+  <main>{% block content %}{% endblock %}</main>
+</body>
+</html>
