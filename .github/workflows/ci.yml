@@ -52,6 +52,8 @@ jobs:
           curl -fsS http://localhost:8000/ | grep -q "NetAtlas"
           curl -fsS -o /dev/null http://localhost:8000/status/
           curl -fsS -o /dev/null "http://localhost:8000$(curl -fsS http://localhost:8000/ | grep -o '/static/netatlas/vendor/htmx[^"]*')"
+      - name: Stays healthy under a custom host name
+        run: NETATLAS_ALLOWED_HOSTS=netatlas.example.test docker compose up -d --wait --wait-timeout 60 app
       - name: Logs on failure
         if: failure()
         run: docker compose logs

@@ -42,5 +42,5 @@ root_package = "netatlas"
 name = "Adapters reach the domain only through services (ADR 0003)"
 type = "forbidden"
 source_modules = ["netatlas.web", "netatlas.api"]
-forbidden_modules = ["netatlas.*.models"]
+forbidden_modules = ["netatlas.**.models"]
 allow_indirect_imports = true

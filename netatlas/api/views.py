@@ -15,4 +15,4 @@ class StatusView(APIView):
 
     def get(self, request):
         status = get_system_status()
-        return Response(asdict(status), status=200 if status.database == "up" else 503)
+        return Response(asdict(status), status=200 if status.is_healthy else 503)

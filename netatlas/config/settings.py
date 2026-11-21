@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 
 from django.core.exceptions import ImproperlyConfigured
+from django.utils.translation import gettext_lazy as _
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
@@ -17,7 +18,7 @@ def env(name, default=None):
 
 DEBUG = env("NETATLAS_DEBUG", "false").lower() == "true"
 SECRET_KEY = env("NETATLAS_SECRET_KEY", "insecure-dev-key" if DEBUG else None)
-ALLOWED_HOSTS = env("NETATLAS_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
+ALLOWED_HOSTS = (os.environ.get("NETATLAS_ALLOWED_HOSTS") or "localhost,127.0.0.1").split(",")
 
 INSTALLED_APPS = [
     "django.contrib.auth",
@@ -73,7 +74,7 @@ DATABASES = {
 
 # Internationalisation: English only in v1, but every UI string is marked for translation.
 LANGUAGE_CODE = "en"
-LANGUAGES = [("en", "English")]
+LANGUAGES = [("en", _("English"))]
 LOCALE_PATHS = [BASE_DIR / "netatlas" / "locale"]
 USE_I18N = True
 USE_TZ = True

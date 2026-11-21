@@ -15,7 +15,7 @@ RUN apt-get update \
 WORKDIR /app
 COPY pyproject.toml ./
 COPY netatlas ./netatlas
-COPY manage.py docker-entrypoint.sh ./
+COPY manage.py docker-entrypoint.sh docker-healthcheck.sh ./
 RUN pip install . \
     && NETATLAS_SECRET_KEY=build-only python manage.py collectstatic --noinput \
     && NETATLAS_SECRET_KEY=build-only python manage.py compilemessages --ignore=.venv
@@ -24,6 +24,6 @@ USER netatlas
 EXPOSE 8000
 VOLUME ["/data/media"]
 HEALTHCHECK --interval=10s --timeout=5s --start-period=20s --retries=3 \
-    CMD curl -fsS http://localhost:8000/api/status/ || exit 1
+    CMD ["./docker-healthcheck.sh"]
 ENTRYPOINT ["./docker-entrypoint.sh"]
 CMD ["gunicorn", "netatlas.config.wsgi", "--bind", "0.0.0.0:8000", "--workers", "3"]
