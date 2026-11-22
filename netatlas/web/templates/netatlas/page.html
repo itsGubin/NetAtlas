@@ -1,0 +1,19 @@
+{% extends "netatlas/base.html" %}{% load i18n %}
+{% block title %}{{ page.title }} · {{ block.super }}{% endblock %}
+{% block content %}
+<h1>{{ page.title }}</h1>
+{% include "netatlas/_errors.html" %}
+{% if item_url %}<p><a href="{{ item_url }}">{% translate "Go to item" %}</a></p>{% endif %}
+
+<article>{{ html }}</article>
+
+{% if can_edit %}
+<p><a href="{% url 'web:page-edit' page.id %}">{% translate "Edit Page" %}</a></p>
+{% if not page.item_id %}<p><a href="{% url 'web:page-delete' page.id %}">{% translate "Delete Page" %}</a></p>{% endif %}
+{% endif %}
+
+{% include "netatlas/_tags.html" with tag_kind="page" tag_item=page.id %}
+
+<h2>{% translate "History" %}</h2>
+{% include "netatlas/_history.html" %}
+{% endblock %}

@@ -97,6 +97,15 @@ urlpatterns = [
     path("subnets/<int:subnet_id>/usage/", views.SubnetUsageView.as_view(), name="subnet-usage"),
     path("subnets/", views.SubnetListView.as_view(), name="subnet-list"),
     path("subnets/<int:subnet_id>/", views.SubnetDetailView.as_view(), name="subnet-detail"),
+    path("pages/", views.PageListView.as_view(), name="page-list"),
+    path("pages/<int:page_id>/", views.PageDetailView.as_view(), name="page-detail"),
+    path("mention-options/", views.MentionOptionsView.as_view(), name="mention-options"),
+    path("items/<slug:kind>/<int:item_id>/page/", views.ItemPageView.as_view(), name="item-page"),
+    path(
+        "items/<slug:kind>/<int:item_id>/referenced-by/",
+        views.ItemReferencesView.as_view(),
+        name="item-references",
+    ),
     path("tags/", views.TagListView.as_view(), name="tag-list"),
     path("tags/<int:tag_id>/", views.TagDetailView.as_view(), name="tag-detail"),
     path(

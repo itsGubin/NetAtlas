@@ -80,6 +80,14 @@ from netatlas.devices.services import (
     virtual_devices,
 )
 from netatlas.history.services import item_history
+from netatlas.pages.services import (
+    create_page,
+    editor_body,
+    get_page,
+    list_pages,
+    mention_options,
+    update_page,
+)
 from netatlas.places.services import (
     create_customer,
     create_site,
@@ -100,6 +108,7 @@ from netatlas.tagging.services import (
     tag_usage,
     update_tag,
 )
+from netatlas.web.page_html import page_html
 
 
 def home(request):
@@ -1051,8 +1060,8 @@ def _after_delete(request, kind, item_id) -> str:
     return reverse(f"web:{lists.get(kind, f'{kind}s')}")
 
 
-def _impact_rows(impacts) -> list[dict]:
-    names = {
+def _kind_names() -> dict[str, str]:
+    return {
         "customer": _("Customer"),
         "site": _("Site"),
         "device": _("Device"),
@@ -1065,7 +1074,12 @@ def _impact_rows(impacts) -> list[dict]:
         "cable": _("Cable"),
         "device-type": _("Device Type"),
         "tag": _("Tag"),
+        "page": _("Page"),
     }
+
+
+def _impact_rows(impacts) -> list[dict]:
+    names = _kind_names()
     return [
         {"kind": names[impact.kind], "label": impact.label, "effect": impact.effect}
         for impact in impacts
@@ -1089,6 +1103,80 @@ def _with_tags(request, kind, items):
     """The items carrying every Tag chosen in the list's filter."""
     names = [name for name in request.GET.getlist("tag") if name.strip()]
     return filter_by_tags(kind, items, names) if names else items
+
+
+@require_http_methods(["GET", "POST"])
+def pages(request):
+    if request.method == "GET":
+        return _render_pages(request)
+
+    require_editor(request.user)
+    title = request.POST.get("title", "")
+    body = request.POST.get("body", "")
+    try:
+        created = create_page(request.user, title, body)
+    except ValidationError as error:
+        return _render_pages(request, errors=error.messages, title=title, body=body)
+    return redirect("web:page", page_id=created.id)
+
+
+def page(request, page_id):
+    item = get_page(request.user, page_id)
+    item_url = reverse(f"web:{item.item_kind}", args=[item.item_id]) if item.item_id else None
+    context = {
+        "page": item,
+        "html": page_html(request.user, page_id),
+        "item_url": item_url,
+        "entries": item_history(request.user, "page", page_id),
+    }
+    return render(request, "netatlas/page.html", context)
+
+
+@require_http_methods(["GET", "POST"])
+def page_edit(request, page_id):
+    require_editor(request.user)
+    if request.method == "GET":
+        return _render_page_edit(request, page_id)
+
+    item = get_page(request.user, page_id)
+    title = request.POST.get("title", "") if item.item_id is None else None
+    body = request.POST.get("body", "")
+    try:
+        update_page(request.user, page_id, title=title, body=body)
+    except ValidationError as error:
+        return _render_page_edit(request, page_id, errors=error.messages, title=title, body=body)
+    return redirect("web:page", page_id=page_id)
+
+
+def page_mention_options(request):
+    names = _kind_names()
+    options = [
+        {"token": option.token, "label": option.label, "kind_name": names[option.kind]}
+        for option in mention_options(request.user, request.GET.get("q", ""))
+    ]
+    return render(request, "netatlas/_mention_options.html", {"options": options})
+
+
+def _render_pages(request, errors=(), title="", body=""):
+    context = {
+        "pages": _with_tags(request, "page", list_pages(request.user)),
+        "errors": errors,
+        "title": title,
+        "body": body,
+    }
+    return render(request, "netatlas/pages.html", context, status=400 if errors else 200)
+
+
+def _render_page_edit(request, page_id, errors=(), title=None, body=None):
+    item = get_page(request.user, page_id)
+    context = {
+        "page": item,
+        "show_title": item.item_id is None,
+        "title": item.title if title is None else title,
+        "body": editor_body(request.user, page_id) if body is None else body,
+        "errors": errors,
+    }
+    return render(request, "netatlas/page_edit.html", context, status=400 if errors else 200)
 
 
 @require_http_methods(["GET", "POST"])

@@ -1,0 +1,15 @@
+{% load i18n netatlas_tags %}{# Expects `doc_kind` and `doc_item`, the item's History kind and ID. #}
+{% item_documentation doc_kind doc_item as documentation %}
+{% if documentation.page %}
+<h2>{% translate "Page" %}</h2>
+<article>{{ documentation.html }}</article>
+<p><a href="{% url 'web:page' documentation.page.id %}">{% translate "Open Page" %}</a>{% if can_edit %} · <a href="{% url 'web:page-edit' documentation.page.id %}">{% translate "Edit Page" %}</a>{% endif %}</p>
+{% endif %}
+<h2>{% translate "Referenced by" %}</h2>
+{% if documentation.references %}
+<ul>
+  {% for reference in documentation.references %}<li><a href="{% url 'web:page' reference.id %}">{{ reference.title }}</a></li>{% endfor %}
+</ul>
+{% else %}
+<p>—</p>
+{% endif %}

@@ -1,0 +1,10 @@
+{% load i18n %}{# Expects `body`, and `show_title` with `title` on a Standalone Page. #}
+{% if show_title %}
+<p><label>{% translate "Title" %} <input name="title" value="{{ title }}" maxlength="200" required></label></p>
+{% endif %}
+<p>
+  <label for="page-body">{% translate "Content (Markdown)" %}</label><br>
+  <textarea id="page-body" name="body" rows="18" cols="80" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="mention-options" aria-describedby="page-body-help" data-mention-url="{% url 'web:mention-options' %}">{{ body }}</textarea>
+</p>
+<ul id="mention-options" role="listbox" aria-label="{% translate 'Items to mention' %}" hidden></ul>
+<p id="page-body-help"><small>{% translate "Type @ to mention an item." %}</small></p>

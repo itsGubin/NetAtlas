@@ -44,6 +44,8 @@
 <p><a href="{% url 'web:vlan-delete' vlan.id %}">{% translate "Delete VLAN" %}</a></p>
 {% endif %}
 
+{% include "netatlas/_item_documentation.html" with doc_kind="vlan" doc_item=vlan.id %}
+
 {% include "netatlas/_tags.html" with tag_kind="vlan" tag_item=vlan.id %}
 
 <h2>{% translate "History" %}</h2>

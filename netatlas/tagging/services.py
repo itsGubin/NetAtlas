@@ -12,6 +12,7 @@ from netatlas.accounts.services import require_editor, require_role
 from netatlas.addressing.models import DhcpRange, IpAddress, Subnet, Vlan
 from netatlas.devices.models import Cable, Device, DeviceType, Interface, Rack
 from netatlas.history.services import create_item, delete_item, update_item
+from netatlas.pages.models import Page
 from netatlas.places.models import Customer, Site
 from netatlas.system.locks import lock_inventory
 from netatlas.tagging.models import Tag
@@ -30,6 +31,7 @@ _TAGGABLE = {
     "ip-address": IpAddress,
     "cable": Cable,
     "device-type": DeviceType,
+    "page": Page,
 }
 TAGGABLE_KINDS = tuple(_TAGGABLE)
 

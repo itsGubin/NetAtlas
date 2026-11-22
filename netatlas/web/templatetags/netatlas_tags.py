@@ -2,7 +2,9 @@ from urllib.parse import urlencode
 
 from django import template
 
+from netatlas.pages.services import get_item_page, has_item_page, referenced_by
 from netatlas.tagging.services import list_tags, tags_of
+from netatlas.web.page_html import page_html
 
 register = template.Library()
 
@@ -10,6 +12,18 @@ register = template.Library()
 @register.simple_tag(takes_context=True)
 def item_tags(context, kind, item_id):
     return tags_of(context["request"].user, kind, item_id)
+
+
+@register.simple_tag(takes_context=True)
+def item_documentation(context, kind, item_id):
+    """The item's Item Page, if its kind has one, and the Pages that mention it."""
+    user = context["request"].user
+    page = get_item_page(user, kind, item_id) if has_item_page(kind) else None
+    return {
+        "page": page,
+        "html": page_html(user, page.id) if page else "",
+        "references": referenced_by(user, kind, item_id),
+    }
 
 
 @register.inclusion_tag("netatlas/_tag_filter.html", takes_context=True)

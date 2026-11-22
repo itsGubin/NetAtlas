@@ -52,6 +52,11 @@ from netatlas.addressing.services import (
 from netatlas.api.authentication import BearerTokenAuthentication
 from netatlas.api.conventions import allowed_filters, paginated, with_tags
 from netatlas.api.serializers import (
+    MentionOptionSerializer,
+    PageChangeSerializer,
+    PageCreateSerializer,
+    PageSerializer,
+    PageSummarySerializer,
     AssignIpAddressSerializer,
     CableChangeSerializer,
     CableFilterSerializer,
@@ -154,6 +159,16 @@ from netatlas.devices.services import (
     virtual_devices,
 )
 from netatlas.history.services import item_history
+from netatlas.pages.services import (
+    create_page,
+    delete_page,
+    get_item_page,
+    get_page,
+    list_pages,
+    mention_options,
+    referenced_by,
+    update_page,
+)
 from netatlas.places.services import (
     create_customer,
     create_site,
@@ -996,6 +1011,94 @@ class CableDetailView(APIView):
     def delete(self, request, cable_id):
         delete_cable(request.user, cable_id)
         return Response(status=http_status.HTTP_204_NO_CONTENT)
+
+
+PAGE_SUMMARY_LIST = page_of(PageSummarySerializer)
+
+
+class PageListView(APIView):
+    @extend_schema(
+        operation_id="pages_list",
+        parameters=[*PAGINATION, TAG_FILTER],
+        responses={200: PAGE_SUMMARY_LIST, **errors(400, 401, 403)},
+    )
+    def get(self, request):
+        pages = list_pages(request.user)
+        allowed_filters(request, "tag")
+        return paginated(request, self, with_tags(request, "page", pages), asdict)
+
+    @extend_schema(
+        description="Creates a Standalone Page. Item Pages are created with their item.",
+        request=PageCreateSerializer,
+        responses={201: PageSerializer, **errors(400, 401, 403)},
+    )
+    def post(self, request):
+        require_editor(request.user)
+        body = PageCreateSerializer(data=request.data)
+        body.is_valid(raise_exception=True)
+        page = create_page(request.user, **body.validated_data)
+        return Response(asdict(page), status=http_status.HTTP_201_CREATED)
+
+
+class PageDetailView(APIView):
+    @extend_schema(responses={200: PageSerializer, **errors(401, 403, 404)})
+    def get(self, request, page_id):
+        return Response(asdict(get_page(request.user, page_id)))
+
+    @extend_schema(
+        description="An Item Page takes its name from its item, so only its `body` can change.",
+        request=PageChangeSerializer,
+        responses={200: PageSerializer, **errors(400, 401, 403, 404)},
+    )
+    def patch(self, request, page_id):
+        require_editor(request.user)
+        body = PageChangeSerializer(data=request.data)
+        body.is_valid(raise_exception=True)
+        return Response(asdict(update_page(request.user, page_id, **body.validated_data)))
+
+    @extend_schema(
+        description="Deletes a Standalone Page. An Item Page is deleted with its item.",
+        responses={204: None, **errors(400, 401, 403, 404)},
+    )
+    def delete(self, request, page_id):
+        delete_page(request.user, page_id)
+        return Response(status=http_status.HTTP_204_NO_CONTENT)
+
+
+class ItemPageView(APIView):
+    @extend_schema(
+        operation_id="item_page_retrieve",
+        description="The item's Item Page. Customers, Sites, Racks, Devices, VLANs and Subnets have one.",
+        responses={200: PageSerializer, **errors(401, 403, 404)},
+    )
+    def get(self, request, kind, item_id):
+        return Response(asdict(get_item_page(request.user, kind, item_id)))
+
+
+class ItemReferencesView(APIView):
+    @extend_schema(
+        operation_id="item_references_list",
+        description="Every Page that mentions the item.",
+        parameters=PAGINATION,
+        responses={200: PAGE_SUMMARY_LIST, **errors(400, 401, 403, 404)},
+    )
+    def get(self, request, kind, item_id):
+        pages = referenced_by(request.user, kind, item_id)
+        allowed_filters(request)
+        return paginated(request, self, pages, asdict)
+
+
+class MentionOptionsView(APIView):
+    @extend_schema(
+        operation_id="mention_options_list",
+        description="Up to 10 items whose name contains `q`.",
+        parameters=[OpenApiParameter("q", str, description="Part of the item's name.")],
+        responses={200: MentionOptionSerializer(many=True), **errors(400, 401, 403)},
+    )
+    def get(self, request):
+        filters = allowed_filters(request, "q")
+        options = mention_options(request.user, filters.get("q", ""))
+        return Response([asdict(option) for option in options])
 
 
 class TagListView(APIView):

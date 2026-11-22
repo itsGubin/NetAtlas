@@ -4,6 +4,7 @@ from django.contrib.auth import authenticate
 from netatlas.accounts.roles import Role
 from netatlas.addressing.services import assign_ip_address, create_subnet
 from netatlas.devices.services import create_device, create_interface, get_device
+from netatlas.pages.services import get_item_page
 from netatlas.places.services import create_site
 
 
@@ -37,7 +38,13 @@ def test_preview_lists_the_impact_and_changes_nothing(client_with_role, role):
     assert (body["kind"], body["item_id"], body["item_label"]) == ("device", device.id, "server")
     assert body["blocked"] == []
     assert body["deleted"] == [
-        {"kind": "interface", "id": port.id, "label": "server eth0", "effect": "deleted"}
+        {"kind": "interface", "id": port.id, "label": "server eth0", "effect": "deleted"},
+        {
+            "kind": "page",
+            "id": get_item_page(root(), "device", device.id).id,
+            "label": "server",
+            "effect": "deleted",
+        },
     ]
     assert body["changed"] == [
         {"kind": "ip-address", "id": address.id, "label": "10.0.0.5", "effect": "becomes Reserved"}
