@@ -1,0 +1,36 @@
+{% extends "netatlas/base.html" %}{% load i18n %}
+{% block title %}{{ ip_address.address }} · {{ block.super }}{% endblock %}
+{% block content %}
+<h1>{{ ip_address.address }}</h1>
+{% include "netatlas/_errors.html" %}
+<dl>
+  {% if sites|length > 1 %}<dt>{% translate "Site" %}</dt><dd><a href="{% url 'web:site' ip_address.site_id %}">{{ ip_address.site_name }}</a></dd>{% endif %}
+  {% if ip_address.subnet_id %}<dt>{% translate "Subnet" %}</dt><dd><a href="{% url 'web:subnet' ip_address.subnet_id %}">{{ ip_address.subnet_cidr }}</a></dd>{% endif %}
+  <dt>{% translate "State" %}</dt><dd>{% if ip_address.status == "assigned" %}{% translate "Assigned" %}{% else %}{% translate "Reserved" %}{% endif %}</dd>
+  {% if ip_address.interface_id %}<dt>{% translate "Interface" %}</dt><dd><a href="{% url 'web:interface' ip_address.interface_id %}">{{ ip_address.device_name }} {{ ip_address.interface_name }}</a></dd>{% endif %}
+  {% if ip_address.description %}<dt>{% translate "Description" %}</dt><dd>{{ ip_address.description }}</dd>{% endif %}
+</dl>
+
+{% if can_edit %}
+{% if ip_address.interface_id %}
+<form method="post" action="{% url 'web:ip-address-unassign' ip_address.id %}">
+  {% csrf_token %}
+  <button type="submit">{% translate "Unassign" %}</button>
+</form>
+{% endif %}
+<h2>{% translate "Edit IP Address" %}</h2>
+<form method="post" action="{% url 'web:ip-address' ip_address.id %}">
+  {% csrf_token %}
+  <p><label>{% translate "IP Address" %} <input name="address" value="{{ form.address|default:'' }}" required></label></p>
+  <p><label>{% translate "Description" %} <input name="description" value="{{ form.description|default:'' }}" maxlength="200"></label></p>
+  <button type="submit">{% translate "Save" %}</button>
+</form>
+<form method="post" action="{% url 'web:ip-address-delete' ip_address.id %}">
+  {% csrf_token %}
+  <button type="submit">{% translate "Delete IP Address" %}</button>
+</form>
+{% endif %}
+
+<h2>{% translate "History" %}</h2>
+{% include "netatlas/_history.html" %}
+{% endblock %}

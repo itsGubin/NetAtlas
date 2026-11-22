@@ -25,14 +25,26 @@ from netatlas.accounts.services import (
     summarize,
 )
 from netatlas.addressing.services import (
+    assign_ip_address,
+    create_dhcp_range,
+    create_ip_address,
     create_subnet,
     create_vlan,
+    delete_dhcp_range,
+    delete_ip_address,
     delete_subnet,
     delete_vlan,
+    get_dhcp_range,
+    get_ip_address,
     get_subnet,
     get_vlan,
+    list_dhcp_ranges,
+    list_ip_addresses,
     list_subnets,
     list_vlans,
+    subnet_usage,
+    update_dhcp_range,
+    update_ip_address,
     update_subnet,
     update_vlan,
     vlan_usage,
@@ -40,6 +52,7 @@ from netatlas.addressing.services import (
 from netatlas.api.authentication import BearerTokenAuthentication
 from netatlas.api.conventions import allowed_filters, paginated
 from netatlas.api.serializers import (
+    AssignIpAddressSerializer,
     CableChangeSerializer,
     CableFilterSerializer,
     CableSerializer,
@@ -53,15 +66,23 @@ from netatlas.api.serializers import (
     DeviceSerializer,
     DeviceTypeChangeSerializer,
     DeviceTypeSerializer,
+    DhcpRangeChangeSerializer,
+    DhcpRangeFilterSerializer,
+    DhcpRangeSerializer,
     HistoryEntrySerializer,
     InterfaceChangeSerializer,
     InterfacePairSerializer,
     InterfaceSerializer,
     InterfaceVlansSerializer,
+    IpAddressChangeSerializer,
+    IpAddressFilterSerializer,
+    IpAddressSerializer,
     NewCableSerializer,
     NewDeviceSerializer,
     NewDeviceTypeSerializer,
+    NewDhcpRangeSerializer,
     NewInterfaceSerializer,
+    NewIpAddressSerializer,
     NewRackSerializer,
     NewSiteSerializer,
     NewSubnetSerializer,
@@ -80,6 +101,7 @@ from netatlas.api.serializers import (
     SubnetChangeSerializer,
     SubnetFilterSerializer,
     SubnetSerializer,
+    SubnetUsageSerializer,
     TokenSerializer,
     UserSerializer,
     VirtualDeviceSerializer,
@@ -695,6 +717,141 @@ class VlanUsageView(APIView):
     )
     def get(self, request, vlan_id):
         return Response(asdict(vlan_usage(request.user, vlan_id)))
+
+
+class IpAddressListView(APIView):
+    @extend_schema(
+        operation_id="ip_addresses_list",
+        description="In numeric order. `subnet` matches the most specific containing Subnet.",
+        parameters=[
+            *PAGINATION,
+            OpenApiParameter("site", int),
+            OpenApiParameter("subnet", int),
+            OpenApiParameter("interface", int),
+            OpenApiParameter("status", str, enum=["assigned", "reserved"]),
+        ],
+        responses={200: page_of(IpAddressSerializer), **errors(400, 401, 403)},
+    )
+    def get(self, request):
+        require_role(request.user)
+        filters = IpAddressFilterSerializer(
+            data=allowed_filters(request, "site", "subnet", "interface", "status")
+        )
+        filters.is_valid(raise_exception=True)
+        values = filters.validated_data
+        addresses = list_ip_addresses(
+            request.user,
+            site_id=values.get("site"),
+            subnet_id=values.get("subnet"),
+            interface_id=values.get("interface"),
+            status=values.get("status"),
+        )
+        return paginated(request, self, addresses, asdict)
+
+    @extend_schema(
+        description="Must be inside a Subnet of the Site and outside every DHCP Range.",
+        request=NewIpAddressSerializer,
+        responses={201: IpAddressSerializer, **errors(400, 401, 403)},
+    )
+    def post(self, request):
+        require_editor(request.user)
+        body = NewIpAddressSerializer(data=request.data)
+        body.is_valid(raise_exception=True)
+        address = create_ip_address(request.user, **body.validated_data)
+        return Response(asdict(address), status=http_status.HTTP_201_CREATED)
+
+
+class IpAddressDetailView(APIView):
+    @extend_schema(responses={200: IpAddressSerializer, **errors(401, 403, 404)})
+    def get(self, request, address_id):
+        return Response(asdict(get_ip_address(request.user, address_id)))
+
+    @extend_schema(
+        description="Setting `interface_id` to null makes the address Reserved.",
+        request=IpAddressChangeSerializer,
+        responses={200: IpAddressSerializer, **errors(400, 401, 403, 404)},
+    )
+    def patch(self, request, address_id):
+        require_editor(request.user)
+        body = IpAddressChangeSerializer(data=request.data)
+        body.is_valid(raise_exception=True)
+        address = update_ip_address(request.user, address_id, **body.validated_data)
+        return Response(asdict(address))
+
+    @extend_schema(responses={204: None, **errors(401, 403, 404)})
+    def delete(self, request, address_id):
+        delete_ip_address(request.user, address_id)
+        return Response(status=http_status.HTTP_204_NO_CONTENT)
+
+
+class InterfaceIpAddressesView(APIView):
+    @extend_schema(
+        description="Assigns the address, using its Reserved entry or documenting it now.",
+        request=AssignIpAddressSerializer,
+        responses={201: IpAddressSerializer, **errors(400, 401, 403, 404)},
+    )
+    def post(self, request, interface_id):
+        require_editor(request.user)
+        body = AssignIpAddressSerializer(data=request.data)
+        body.is_valid(raise_exception=True)
+        address = assign_ip_address(request.user, interface_id, body.validated_data["address"])
+        return Response(asdict(address), status=http_status.HTTP_201_CREATED)
+
+
+class DhcpRangeListView(APIView):
+    @extend_schema(
+        operation_id="dhcp_ranges_list",
+        parameters=[*PAGINATION, OpenApiParameter("subnet", int)],
+        responses={200: page_of(DhcpRangeSerializer), **errors(400, 401, 403)},
+    )
+    def get(self, request):
+        require_role(request.user)
+        filters = DhcpRangeFilterSerializer(data=allowed_filters(request, "subnet"))
+        filters.is_valid(raise_exception=True)
+        ranges = list_dhcp_ranges(request.user, subnet_id=filters.validated_data.get("subnet"))
+        return paginated(request, self, ranges, asdict)
+
+    @extend_schema(
+        description="Inclusive at both ends. Cannot overlap IP Addresses or nested Subnets.",
+        request=NewDhcpRangeSerializer,
+        responses={201: DhcpRangeSerializer, **errors(400, 401, 403)},
+    )
+    def post(self, request):
+        require_editor(request.user)
+        body = NewDhcpRangeSerializer(data=request.data)
+        body.is_valid(raise_exception=True)
+        dhcp = create_dhcp_range(request.user, **body.validated_data)
+        return Response(asdict(dhcp), status=http_status.HTTP_201_CREATED)
+
+
+class DhcpRangeDetailView(APIView):
+    @extend_schema(responses={200: DhcpRangeSerializer, **errors(401, 403, 404)})
+    def get(self, request, range_id):
+        return Response(asdict(get_dhcp_range(request.user, range_id)))
+
+    @extend_schema(
+        request=DhcpRangeChangeSerializer,
+        responses={200: DhcpRangeSerializer, **errors(400, 401, 403, 404)},
+    )
+    def patch(self, request, range_id):
+        require_editor(request.user)
+        body = DhcpRangeChangeSerializer(data=request.data)
+        body.is_valid(raise_exception=True)
+        return Response(asdict(update_dhcp_range(request.user, range_id, **body.validated_data)))
+
+    @extend_schema(responses={204: None, **errors(401, 403, 404)})
+    def delete(self, request, range_id):
+        delete_dhcp_range(request.user, range_id)
+        return Response(status=http_status.HTTP_204_NO_CONTENT)
+
+
+class SubnetUsageView(APIView):
+    @extend_schema(
+        description="Used, reserved, DHCP and free space, and the next free IP Address.",
+        responses={200: SubnetUsageSerializer, **errors(401, 403, 404)},
+    )
+    def get(self, request, subnet_id):
+        return Response(asdict(subnet_usage(request.user, subnet_id)))
 
 
 class SubnetListView(APIView):

@@ -1,0 +1,29 @@
+{% extends "netatlas/base.html" %}{% load i18n %}
+{% block title %}{{ dhcp_range.start }} – {{ dhcp_range.end }} · {{ block.super }}{% endblock %}
+{% block content %}
+<h1>{{ dhcp_range.start }} – {{ dhcp_range.end }}</h1>
+{% include "netatlas/_errors.html" %}
+<dl>
+  <dt>{% translate "Subnet" %}</dt><dd><a href="{% url 'web:subnet' dhcp_range.subnet_id %}">{{ dhcp_range.subnet_cidr }}</a></dd>
+  <dt>{% translate "Addresses" %}</dt><dd>{{ dhcp_range.size }}</dd>
+  {% if dhcp_range.description %}<dt>{% translate "Description" %}</dt><dd>{{ dhcp_range.description }}</dd>{% endif %}
+</dl>
+
+{% if can_edit %}
+<h2>{% translate "Edit DHCP Range" %}</h2>
+<form method="post" action="{% url 'web:dhcp-range' dhcp_range.id %}">
+  {% csrf_token %}
+  <p><label>{% translate "Start" %} <input name="start" value="{{ form.start|default:'' }}" required></label></p>
+  <p><label>{% translate "End" %} <input name="end" value="{{ form.end|default:'' }}" required></label></p>
+  <p><label>{% translate "Description" %} <input name="description" value="{{ form.description|default:'' }}" maxlength="200"></label></p>
+  <button type="submit">{% translate "Save" %}</button>
+</form>
+<form method="post" action="{% url 'web:dhcp-range-delete' dhcp_range.id %}">
+  {% csrf_token %}
+  <button type="submit">{% translate "Delete DHCP Range" %}</button>
+</form>
+{% endif %}
+
+<h2>{% translate "History" %}</h2>
+{% include "netatlas/_history.html" %}
+{% endblock %}

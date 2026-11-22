@@ -20,7 +20,69 @@
 </ul>
 {% endif %}
 
+<h2>{% translate "Address space" %}</h2>
+<dl>
+  <dt>{% translate "Assigned" %}</dt><dd data-usage="assigned">{{ usage.assigned }}</dd>
+  <dt>{% translate "Reserved" %}</dt><dd data-usage="reserved">{{ usage.reserved }}</dd>
+  <dt>{% translate "DHCP" %}</dt><dd data-usage="dhcp">{{ usage.dhcp }}</dd>
+  <dt>{% translate "Nested Subnets" %}</dt><dd data-usage="nested">{{ usage.nested }}</dd>
+  <dt>{% translate "Free" %}</dt><dd data-usage="free">{{ usage.free }}</dd>
+  <dt>{% translate "Next free IP" %}</dt><dd data-usage="next-free">{{ usage.next_free|default:"—" }}</dd>
+</dl>
+
+<h2>{% translate "IP Addresses" %}</h2>
+{% if usage.ip_addresses %}
+<table>
+  <thead>
+    <tr>
+      <th scope="col">{% translate "IP Address" %}</th>
+      <th scope="col">{% translate "State" %}</th>
+      <th scope="col">{% translate "Interface" %}</th>
+      <th scope="col">{% translate "Description" %}</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for item in usage.ip_addresses %}
+    <tr>
+      <td><a href="{% url 'web:ip-address' item.id %}">{{ item.address }}</a></td>
+      <td>{% if item.status == "assigned" %}{% translate "Assigned" %}{% else %}{% translate "Reserved" %}{% endif %}</td>
+      <td>{% if item.interface_id %}<a href="{% url 'web:interface' item.interface_id %}">{{ item.device_name }} {{ item.interface_name }}</a>{% else %}—{% endif %}</td>
+      <td>{{ item.description|default:"—" }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p>—</p>
+{% endif %}
+
+<h2>{% translate "DHCP Ranges" %}</h2>
+{% if usage.dhcp_ranges %}
+<ul>
+  {% for item in usage.dhcp_ranges %}<li><a href="{% url 'web:dhcp-range' item.id %}">{{ item.start }} – {{ item.end }}</a> · {{ item.size }}</li>{% endfor %}
+</ul>
+{% else %}
+<p>—</p>
+{% endif %}
+
 {% if can_edit %}
+<h2>{% translate "Reserve IP Address" %}</h2>
+<form method="post" action="{% url 'web:subnet-ip-addresses' subnet.id %}">
+  {% csrf_token %}
+  <p><label>{% translate "IP Address" %} <input name="address" value="{{ new_address }}" required></label></p>
+  <p><label>{% translate "Description" %} <input name="description" maxlength="200"></label></p>
+  <button type="submit">{% translate "Reserve" %}</button>
+</form>
+
+<h2>{% translate "Add DHCP Range" %}</h2>
+<form method="post" action="{% url 'web:subnet-dhcp-ranges' subnet.id %}">
+  {% csrf_token %}
+  <p><label>{% translate "Start" %} <input name="start" value="{{ range_form.start|default:'' }}" required></label></p>
+  <p><label>{% translate "End" %} <input name="end" value="{{ range_form.end|default:'' }}" required></label></p>
+  <p><label>{% translate "Description" %} <input name="description" value="{{ range_form.description|default:'' }}" maxlength="200"></label></p>
+  <button type="submit">{% translate "Add DHCP Range" %}</button>
+</form>
+
 <h2>{% translate "Edit Subnet" %}</h2>
 <form method="post" action="{% url 'web:subnet' subnet.id %}">
   {% csrf_token %}

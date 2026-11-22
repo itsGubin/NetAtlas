@@ -110,6 +110,18 @@ Every error has the same shape. `fields` lists messages per field and is empty f
 - Nesting is derived from the addresses. Lists are in tree order, and each Subnet has `parent_id` and `depth`.
 - `utilisation` is the percentage covered by directly nested Subnets, rounded down to one decimal.
 - Deleting a Subnet keeps those nested in it, which move up the tree. A Site with Subnets cannot be deleted.
+- A Subnet cannot be deleted or changed if an IP Address would end up outside every Subnet, or if a DHCP Range would no longer fit. A Subnet holding IP Addresses or DHCP Ranges cannot change Site.
+- `GET /api/subnets/<id>/usage/` returns Assigned, Reserved, DHCP, nested and free space, plus `next_free`. Counts that can exceed a JSON number are text.
+
+## IP Addresses and DHCP Ranges
+
+`/api/ip-addresses/` and `/api/dhcp-ranges/` support list, create, read, `PATCH` and delete. Address lists filter by `site`, `subnet`, `interface` and `status`, and range lists by `subnet`. Every Role can read. Admins and Editors can write.
+
+- An IP Address is unique within a Site and belongs to the most specific Subnet containing it. It is `assigned` with an `interface_id` and `reserved` without one.
+- The network and broadcast addresses of an IPv4 Subnet are refused, except in a `/31` or `/32`.
+- `POST /api/interfaces/<id>/ip-addresses/` with `{"address"}` assigns an address, using its Reserved entry or documenting it now.
+- Deleting an Interface or Device makes its IP Addresses Reserved (ADR 0005). A Device with Assigned addresses cannot change Site, including anything nested on it.
+- A DHCP Range is inclusive at both ends and stays inside its Subnet. It cannot overlap another range, a nested Subnet or a documented IP Address.
 
 ## VLANs
 

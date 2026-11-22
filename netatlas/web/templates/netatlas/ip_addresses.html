@@ -1,0 +1,41 @@
+{% extends "netatlas/base.html" %}{% load i18n %}
+{% block title %}{% translate "IP Addresses" %} · {{ block.super }}{% endblock %}
+{% block content %}
+<h1>{% translate "IP Addresses" %}</h1>
+{% include "netatlas/_errors.html" %}
+<table>
+  <thead>
+    <tr>
+      <th scope="col">{% translate "IP Address" %}</th>
+      {% if sites|length > 1 %}<th scope="col">{% translate "Site" %}</th>{% endif %}
+      <th scope="col">{% translate "Subnet" %}</th>
+      <th scope="col">{% translate "State" %}</th>
+      <th scope="col">{% translate "Interface" %}</th>
+      <th scope="col">{% translate "Description" %}</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for item in ip_addresses %}
+    <tr>
+      <td><a href="{% url 'web:ip-address' item.id %}">{{ item.address }}</a></td>
+      {% if sites|length > 1 %}<td>{{ item.site_name }}</td>{% endif %}
+      <td>{% if item.subnet_id %}<a href="{% url 'web:subnet' item.subnet_id %}">{{ item.subnet_cidr }}</a>{% else %}—{% endif %}</td>
+      <td>{% if item.status == "assigned" %}{% translate "Assigned" %}{% else %}{% translate "Reserved" %}{% endif %}</td>
+      <td>{% if item.interface_id %}<a href="{% url 'web:interface' item.interface_id %}">{{ item.device_name }} {{ item.interface_name }}</a>{% else %}—{% endif %}</td>
+      <td>{{ item.description|default:"—" }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% if can_edit %}
+<h2>{% translate "Reserve IP Address" %}</h2>
+<form method="post" action="{% url 'web:ip-addresses' %}">
+  {% csrf_token %}
+  <p><label>{% translate "IP Address" %} <input name="address" value="{{ form.address|default:'' }}" required></label></p>
+  {% include "netatlas/_site_select.html" %}
+  <p><label>{% translate "Description" %} <input name="description" value="{{ form.description|default:'' }}" maxlength="200"></label></p>
+  <button type="submit">{% translate "Reserve" %}</button>
+</form>
+{% endif %}
+{% endblock %}
