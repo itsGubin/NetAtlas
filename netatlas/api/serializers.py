@@ -46,6 +46,23 @@ class NewTokenSerializer(serializers.Serializer):
     expires_at = serializers.DateTimeField(required=False, allow_null=True)
 
 
+class FieldChangeSerializer(serializers.Serializer):
+    field = serializers.CharField()
+    old = serializers.JSONField(allow_null=True)
+    new = serializers.JSONField(allow_null=True)
+
+
+class HistoryEntrySerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    item_kind = serializers.CharField()
+    item_id = serializers.IntegerField()
+    item_label = serializers.CharField()
+    action = serializers.ChoiceField(choices=["created", "updated", "deleted"])
+    actor = serializers.CharField()
+    at = serializers.DateTimeField()
+    changes = FieldChangeSerializer(many=True)
+
+
 class ErrorBodySerializer(serializers.Serializer):
     code = serializers.CharField()
     message = serializers.CharField()

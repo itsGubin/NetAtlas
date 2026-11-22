@@ -1,0 +1,27 @@
+{% load i18n %}{# Reusable on item views. Expects `entries`, newest first. #}
+{% for entry in entries %}
+<section data-history-action="{{ entry.action }}">
+  <h2>
+    {% if entry.action == "created" %}{% translate "Created" %}{% elif entry.action == "updated" %}{% translate "Updated" %}{% else %}{% translate "Deleted" %}{% endif %}
+    · {{ entry.actor }} · <time datetime="{{ entry.at|date:'c' }}">{{ entry.at }}</time>
+  </h2>
+  <table>
+    <thead>
+      <tr>
+        <th scope="col">{% translate "Field" %}</th>
+        <th scope="col">{% translate "Old" %}</th>
+        <th scope="col">{% translate "New" %}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for change in entry.changes %}
+      <tr>
+        <td>{{ change.field }}</td>
+        <td>{{ change.old|default_if_none:"—" }}</td>
+        <td>{{ change.new|default_if_none:"—" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endfor %}

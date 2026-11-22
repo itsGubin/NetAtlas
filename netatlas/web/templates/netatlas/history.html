@@ -1,0 +1,6 @@
+{% extends "netatlas/base.html" %}{% load i18n %}
+{% block title %}{% blocktranslate with label=item_label %}History of {{ label }}{% endblocktranslate %} · {{ block.super }}{% endblock %}
+{% block content %}
+<h1>{% blocktranslate with label=item_label %}History of {{ label }}{% endblocktranslate %}</h1>
+{% include "netatlas/_history.html" %}
+{% endblock %}

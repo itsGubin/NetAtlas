@@ -26,6 +26,7 @@ from netatlas.api.authentication import BearerTokenAuthentication
 from netatlas.api.conventions import allowed_filters, paginated
 from netatlas.api.serializers import (
     CreatedTokenSerializer,
+    HistoryEntrySerializer,
     NewTokenSerializer,
     NewUserSerializer,
     RoleChangeSerializer,
@@ -35,6 +36,7 @@ from netatlas.api.serializers import (
     errors,
     page_of,
 )
+from netatlas.history.services import item_history
 from netatlas.system.services import get_system_status
 
 PAGINATION = [
@@ -132,3 +134,15 @@ class TokenDetailView(APIView):
     def delete(self, request, token_id):
         revoke_token(request.user, token_id)
         return Response(status=http_status.HTTP_204_NO_CONTENT)
+
+
+class HistoryView(APIView):
+    @extend_schema(
+        description="An item's History, newest first. It stays available after a delete.",
+        parameters=PAGINATION,
+        responses={200: page_of(HistoryEntrySerializer), **errors(400, 401, 403, 404)},
+    )
+    def get(self, request, kind, item_id):
+        entries = item_history(request.user, kind, item_id)
+        allowed_filters(request)
+        return paginated(request, self, entries, asdict)

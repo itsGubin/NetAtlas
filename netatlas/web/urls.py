@@ -12,6 +12,7 @@ urlpatterns = [
     path("status/", views.status, name="status"),
     path("users/", views.users, name="users"),
     path("users/<int:user_id>/role/", views.user_role, name="user-role"),
+    path("history/<slug:kind>/<int:item_id>/", views.history, name="history"),
     path("tokens/", views.tokens, name="tokens"),
     path("tokens/<int:token_id>/revoke/", views.token_revoke, name="token-revoke"),
 ]
