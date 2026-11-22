@@ -104,10 +104,7 @@
   {% endif %}
   <button type="submit">{% translate "Save" %}</button>
 </form>
-<form method="post" action="{% url 'web:device-delete' device.id %}">
-  {% csrf_token %}
-  <button type="submit">{% translate "Delete Device" %}</button>
-</form>
+<p><a href="{% url 'web:device-delete' device.id %}">{% translate "Delete Device" %}</a></p>
 {% endif %}
 
 <h2>{% translate "History" %}</h2>

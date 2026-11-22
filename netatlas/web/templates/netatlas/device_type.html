@@ -24,10 +24,7 @@
   {% include "netatlas/_device_type_fields.html" %}
   <button type="submit">{% translate "Save" %}</button>
 </form>
-<form method="post" action="{% url 'web:device-type-delete' device_type.id %}">
-  {% csrf_token %}
-  <button type="submit">{% translate "Delete Device Type" %}</button>
-</form>
+<p><a href="{% url 'web:device-type-delete' device_type.id %}">{% translate "Delete Device Type" %}</a></p>
 {% endif %}
 
 <h2>{% translate "History" %}</h2>

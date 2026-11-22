@@ -41,10 +41,7 @@
   <p><label>{% translate "Name" %} <input name="name" value="{{ form.name|default:'' }}"></label></p>
   <button type="submit">{% translate "Save" %}</button>
 </form>
-<form method="post" action="{% url 'web:vlan-delete' vlan.id %}">
-  {% csrf_token %}
-  <button type="submit">{% translate "Delete VLAN" %}</button>
-</form>
+<p><a href="{% url 'web:vlan-delete' vlan.id %}">{% translate "Delete VLAN" %}</a></p>
 {% endif %}
 
 <h2>{% translate "History" %}</h2>

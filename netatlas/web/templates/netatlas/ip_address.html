@@ -25,10 +25,7 @@
   <p><label>{% translate "Description" %} <input name="description" value="{{ form.description|default:'' }}" maxlength="200"></label></p>
   <button type="submit">{% translate "Save" %}</button>
 </form>
-<form method="post" action="{% url 'web:ip-address-delete' ip_address.id %}">
-  {% csrf_token %}
-  <button type="submit">{% translate "Delete IP Address" %}</button>
-</form>
+<p><a href="{% url 'web:ip-address-delete' ip_address.id %}">{% translate "Delete IP Address" %}</a></p>
 {% endif %}
 
 <h2>{% translate "History" %}</h2>

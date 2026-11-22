@@ -12,6 +12,7 @@ from netatlas.devices.services import (
     pair_interfaces,
 )
 from netatlas.places.services import create_site
+from tests.helpers import confirm_delete
 
 WRITERS = [Role.ADMIN, Role.EDITOR]
 
@@ -55,7 +56,7 @@ def test_writer_connects_relabels_and_removes_a_cable(client_with_role, role):
     client.post(f"/cables/{cable.id}/", {"label": "B-7"})
     assert get_cable(root(), cable.id).label == "B-7"
 
-    assert client.post(f"/cables/{cable.id}/delete/").status_code == 302
+    assert confirm_delete(client, f"/cables/{cable.id}/delete/").status_code == 302
     assert list_cables(root()) == []
 
 

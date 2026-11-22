@@ -507,6 +507,28 @@ class SubnetUsageSerializer(serializers.Serializer):
     dhcp_ranges = DhcpRangeSerializer(many=True)
 
 
+class DeleteImpactSerializer(serializers.Serializer):
+    kind = serializers.CharField()
+    id = serializers.IntegerField(allow_null=True)
+    label = serializers.CharField()
+    effect = serializers.CharField()
+
+
+class DeletePreviewSerializer(serializers.Serializer):
+    kind = serializers.CharField()
+    item_id = serializers.IntegerField()
+    item_label = serializers.CharField()
+    deleted = DeleteImpactSerializer(many=True)
+    changed = DeleteImpactSerializer(many=True)
+    moved = DeleteImpactSerializer(many=True)
+    blocked = serializers.ListField(
+        child=serializers.CharField(), help_text="Why the delete would be refused."
+    )
+    fingerprint = serializers.CharField(
+        allow_blank=True, help_text="Identifies this exact impact. Empty if blocked."
+    )
+
+
 class ErrorBodySerializer(serializers.Serializer):
     code = serializers.CharField()
     message = serializers.CharField()

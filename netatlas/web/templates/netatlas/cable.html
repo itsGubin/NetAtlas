@@ -16,10 +16,7 @@
   <p><label>{% translate "Label" %} <input name="label" value="{{ label }}"></label></p>
   <button type="submit">{% translate "Save" %}</button>
 </form>
-<form method="post" action="{% url 'web:cable-delete' cable.id %}">
-  {% csrf_token %}
-  <button type="submit">{% translate "Delete Cable" %}</button>
-</form>
+<p><a href="{% url 'web:cable-delete' cable.id %}">{% translate "Delete Cable" %}</a></p>
 {% endif %}
 
 <h2>{% translate "History" %}</h2>

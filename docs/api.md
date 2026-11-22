@@ -145,6 +145,14 @@ Every error has the same shape. `fields` lists messages per field and is empty f
 - `GET /api/interfaces/<id>/trace/` returns the whole path through a Physical Interface as `hops`, end to end. `cable_id` on a hop is the Cable to the next hop, and is null across a pair. `is_loop` is true if the path returns to itself.
 - An Interface's `kind` cannot change while it has a Cable or a pair.
 
+## Delete preview
+
+`GET /api/delete-preview/<kind>/<id>/` shows what deleting an item would do, without changing anything. It requires the Admin or Editor Role. `kind` is `customer`, `site`, `device`, `interface`, `rack`, `vlan`, `subnet`, `dhcp-range`, `ip-address`, `cable` or `device-type`.
+
+- `deleted`, `changed` and `moved` list every affected item with its `effect`. `moved` holds what moves up the Subnet tree.
+- `blocked` holds the reasons a delete would be refused. A blocked item still returns `200`.
+- The preview is optional for API clients, and `DELETE` works without it. The web UI always shows it and asks again if the impact changed in the meantime.
+
 ## Adding a documented item
 
 - Inherit from `TrackedModel`, and set `history_kind` and any `history_exclude` fields.

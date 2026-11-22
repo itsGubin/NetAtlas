@@ -4,6 +4,7 @@ from django.template.loader import render_to_string
 
 from netatlas.accounts.roles import Role
 from netatlas.places.services import create_customer, create_site, list_customers, list_sites
+from tests.helpers import confirm_delete
 
 WRITERS = [Role.ADMIN, Role.EDITOR]
 
@@ -31,7 +32,7 @@ def test_writer_creates_edits_and_deletes_a_customer(client_with_role, role):
     client.post(f"/customers/{customer.id}/", {"name": "Acme AG"})
     assert "Acme AG" in client.get(f"/customers/{customer.id}/").content.decode()
 
-    assert client.post(f"/customers/{customer.id}/delete/").status_code == 302
+    assert confirm_delete(client, f"/customers/{customer.id}/delete/").status_code == 302
     assert list_customers(root()) == []
 
 
@@ -49,7 +50,7 @@ def test_writer_creates_edits_and_deletes_a_site(client_with_role, role):
     edited = next(s for s in list_sites(root()) if s.id == site.id)
     assert (edited.name, edited.customer_id) == ("Branch", None)
 
-    assert client.post(f"/sites/{site.id}/delete/").status_code == 302
+    assert confirm_delete(client, f"/sites/{site.id}/delete/").status_code == 302
     assert [s.name for s in list_sites(root())] == ["Home"]
 
 

@@ -4,6 +4,7 @@ from django.contrib.auth import authenticate
 from netatlas.accounts.roles import Role
 from netatlas.addressing.services import create_subnet, get_subnet, list_subnets
 from netatlas.places.services import create_site
+from tests.helpers import confirm_delete
 
 WRITERS = [Role.ADMIN, Role.EDITOR]
 
@@ -33,7 +34,7 @@ def test_writer_creates_edits_and_deletes_a_subnet(client_with_role, role):
     client.post(f"/subnets/{subnet.id}/", {"cidr": "10.0.1.0/24", "site_id": site.id})
     assert get_subnet(root(), subnet.id).cidr == "10.0.1.0/24"
 
-    assert client.post(f"/subnets/{subnet.id}/delete/").status_code == 302
+    assert confirm_delete(client, f"/subnets/{subnet.id}/delete/").status_code == 302
     assert list_subnets(root()) == []
 
 

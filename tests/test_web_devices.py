@@ -9,6 +9,7 @@ from netatlas.devices.services import (
     list_devices,
 )
 from netatlas.places.services import create_site
+from tests.helpers import confirm_delete
 
 WRITERS = [Role.ADMIN, Role.EDITOR]
 
@@ -45,7 +46,7 @@ def test_writer_creates_edits_and_deletes_a_device(client_with_role, role):
     edited = get_device(root(), device.id)
     assert (edited.name, edited.rack_height) == ("core", 3)
 
-    assert client.post(f"/devices/{device.id}/delete/").status_code == 302
+    assert confirm_delete(client, f"/devices/{device.id}/delete/").status_code == 302
     assert list_devices(root()) == []
 
 

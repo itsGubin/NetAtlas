@@ -1,0 +1,15 @@
+{% load i18n %}{# Expects `impacts`, each with kind, label and effect. #}
+<table>
+  <thead>
+    <tr>
+      <th scope="col">{% translate "Kind" %}</th>
+      <th scope="col">{% translate "Item" %}</th>
+      <th scope="col">{% translate "Effect" %}</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for impact in impacts %}
+    <tr><td>{{ impact.kind }}</td><td>{{ impact.label }}</td><td>{{ impact.effect }}</td></tr>
+    {% endfor %}
+  </tbody>
+</table>

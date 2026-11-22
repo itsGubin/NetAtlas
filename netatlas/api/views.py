@@ -60,6 +60,7 @@ from netatlas.api.serializers import (
     CreatedTokenSerializer,
     CustomerChangeSerializer,
     CustomerSerializer,
+    DeletePreviewSerializer,
     DeviceChangeSerializer,
     DeviceFilterSerializer,
     DevicePlacementSerializer,
@@ -112,6 +113,7 @@ from netatlas.api.serializers import (
     errors,
     page_of,
 )
+from netatlas.deletion.services import preview_delete
 from netatlas.devices.services import (
     create_cable,
     create_device,
@@ -269,6 +271,17 @@ class HistoryView(APIView):
         entries = item_history(request.user, kind, item_id)
         allowed_filters(request)
         return paginated(request, self, entries, asdict)
+
+
+class DeletePreviewView(APIView):
+    @extend_schema(
+        description="What deleting this item would do. Nothing is changed.",
+        responses={200: DeletePreviewSerializer, **errors(400, 401, 403, 404)},
+    )
+    def get(self, request, kind, item_id):
+        preview = preview_delete(request.user, kind, item_id)
+        allowed_filters(request)
+        return Response(asdict(preview))
 
 
 class CustomerListView(APIView):

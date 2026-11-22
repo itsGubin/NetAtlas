@@ -91,10 +91,7 @@
   {% include "netatlas/_vlan_select.html" %}
   <button type="submit">{% translate "Save" %}</button>
 </form>
-<form method="post" action="{% url 'web:subnet-delete' subnet.id %}">
-  {% csrf_token %}
-  <button type="submit">{% translate "Delete Subnet" %}</button>
-</form>
+<p><a href="{% url 'web:subnet-delete' subnet.id %}">{% translate "Delete Subnet" %}</a></p>
 {% endif %}
 
 <h2>{% translate "History" %}</h2>
