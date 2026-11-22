@@ -2,9 +2,11 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 
 _tracked_write = ContextVar("netatlas_tracked_write", default=False)
 
@@ -68,6 +70,21 @@ class TrackedModel(models.Model):
 
     class Meta:
         abstract = True
+
+    def clean_fields(self, exclude=None):
+        """Refuse NUL characters, which Postgres cannot store and would turn into a 500."""
+        skipped = set(exclude or ())
+        errors = {}
+        for field in self._meta.concrete_fields:
+            value = getattr(self, field.attname)
+            if field.name not in skipped and isinstance(value, str) and "\x00" in value:
+                errors[field.name] = [_("Null characters are not allowed.")]
+        try:
+            super().clean_fields(exclude=skipped | set(errors))
+        except ValidationError as error:
+            errors.update(error.message_dict)
+        if errors:
+            raise ValidationError(errors)
 
     def save(self, *args, **kwargs):
         _require_tracked_write()

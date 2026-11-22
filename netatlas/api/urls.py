@@ -25,4 +25,11 @@ urlpatterns = [
         views.DeviceTypeDetailView.as_view(),
         name="device-type-detail",
     ),
+    path("devices/", views.DeviceListView.as_view(), name="device-list"),
+    path("devices/<int:device_id>/", views.DeviceDetailView.as_view(), name="device-detail"),
+    path(
+        "devices/<int:device_id>/virtual-devices/",
+        views.VirtualDeviceListView.as_view(),
+        name="device-virtual-devices",
+    ),
 ]

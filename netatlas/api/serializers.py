@@ -1,9 +1,13 @@
 """Request and response shapes. Plain serializers only: models stay behind the services."""
 
+from django.utils.translation import gettext as _
 from drf_spectacular.utils import OpenApiResponse, extend_schema_field, inline_serializer
 from rest_framework import serializers
 
 from netatlas.accounts.roles import Role
+
+DEVICE_KINDS = ["physical", "virtual"]
+INTERFACE_KINDS = ["physical", "virtual", "lag"]
 
 
 class StatusSerializer(serializers.Serializer):
@@ -94,7 +98,7 @@ class SiteFilterSerializer(serializers.Serializer):
 
 class DeviceTypeInterfaceSerializer(serializers.Serializer):
     name = serializers.CharField(help_text="On input, may be a bulk pattern such as `port[1-48]`.")
-    kind = serializers.ChoiceField(choices=["physical", "virtual", "lag"])
+    kind = serializers.ChoiceField(choices=INTERFACE_KINDS)
 
 
 @extend_schema_field(DeviceTypeInterfaceSerializer(many=True))
@@ -120,6 +124,64 @@ class DeviceTypeChangeSerializer(serializers.Serializer):
 class NewDeviceTypeSerializer(DeviceTypeChangeSerializer):
     make = serializers.CharField(max_length=100)
     model_name = serializers.CharField(max_length=100)
+
+
+class DeviceInterfaceSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    name = serializers.CharField()
+    kind = serializers.ChoiceField(choices=INTERFACE_KINDS)
+
+
+class DeviceSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    name = serializers.CharField()
+    kind = serializers.ChoiceField(choices=DEVICE_KINDS)
+    site_id = serializers.IntegerField()
+    site_name = serializers.CharField()
+    parent_id = serializers.IntegerField(allow_null=True)
+    parent_name = serializers.CharField(allow_null=True)
+    device_type_id = serializers.IntegerField(allow_null=True)
+    device_type_name = serializers.CharField(allow_null=True)
+    rack_height = serializers.IntegerField()
+    interfaces = DeviceInterfaceSerializer(many=True)
+
+
+class NewDeviceSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=100)
+    kind = serializers.ChoiceField(choices=DEVICE_KINDS)
+    site_id = serializers.IntegerField(
+        required=False, help_text="Required for a Physical Device. Virtual Devices inherit it."
+    )
+    parent_id = serializers.IntegerField(
+        required=False, allow_null=True, help_text="The Hypervisor of a Virtual Device."
+    )
+    device_type_id = serializers.IntegerField(required=False, allow_null=True)
+    rack_height = serializers.IntegerField(min_value=0, max_value=32767, required=False)
+
+
+class DeviceChangeSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=100, required=False)
+    site_id = serializers.IntegerField(required=False)
+    parent_id = serializers.IntegerField(required=False, allow_null=True)
+    rack_height = serializers.IntegerField(min_value=0, max_value=32767, required=False)
+
+    def validate(self, attrs):
+        if "kind" in self.initial_data:
+            raise serializers.ValidationError({"kind": [_("A Device's kind cannot be changed.")]})
+        return attrs
+
+
+class DeviceFilterSerializer(serializers.Serializer):
+    site = serializers.IntegerField(required=False)
+    kind = serializers.ChoiceField(choices=DEVICE_KINDS, required=False)
+    parent = serializers.IntegerField(required=False)
+
+
+class VirtualDeviceSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    name = serializers.CharField()
+    parent_id = serializers.IntegerField()
+    depth = serializers.IntegerField(help_text="1 runs directly on the requested Device.")
 
 
 class ErrorBodySerializer(serializers.Serializer):

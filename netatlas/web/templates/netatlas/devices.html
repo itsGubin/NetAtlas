@@ -1,0 +1,60 @@
+{% extends "netatlas/base.html" %}{% load i18n %}
+{% block title %}{% translate "Devices" %} · {{ block.super }}{% endblock %}
+{% block content %}
+<h1>{% translate "Devices" %}</h1>
+{% include "netatlas/_errors.html" %}
+<table>
+  <thead>
+    <tr>
+      <th scope="col">{% translate "Name" %}</th>
+      <th scope="col">{% translate "Kind" %}</th>
+      {% if sites|length > 1 %}<th scope="col">{% translate "Site" %}</th>{% endif %}
+      <th scope="col">{% translate "Hypervisor" %}</th>
+      <th scope="col">{% translate "Device Type" %}</th>
+      <th scope="col">{% translate "Interfaces" %}</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for item in devices %}
+    <tr>
+      <td><a href="{% url 'web:device' item.id %}">{{ item.name }}</a></td>
+      <td>{{ item.kind }}</td>
+      {% if sites|length > 1 %}<td>{{ item.site_name }}</td>{% endif %}
+      <td>{{ item.parent_name|default_if_none:"—" }}</td>
+      <td>{{ item.device_type_name|default_if_none:"—" }}</td>
+      <td>{{ item.interfaces|length }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% if can_edit %}
+<h2>{% translate "Add Device" %}</h2>
+<form method="post" action="{% url 'web:devices' %}">
+  {% csrf_token %}
+  <p><label>{% translate "Name" %} <input name="name" value="{{ form.name|default:'' }}" required></label></p>
+  <p>
+    <label>{% translate "Kind" %}
+      <select name="kind">
+        <option value="physical"{% if form.kind == "physical" %} selected{% endif %}>{% translate "Physical" %}</option>
+        <option value="virtual"{% if form.kind == "virtual" %} selected{% endif %}>{% translate "Virtual" %}</option>
+      </select>
+    </label>
+  </p>
+  {% include "netatlas/_site_select.html" %}
+  {% include "netatlas/_hypervisor_select.html" %}
+  <p>
+    <label>{% translate "Device Type" %}
+      <select name="device_type_id">
+        <option value="">{% translate "None" %}</option>
+        {% for item in device_types %}
+        <option value="{{ item.id }}"{% if item.id == selected_type %} selected{% endif %}>{{ item.make }} {{ item.model_name }}</option>
+        {% endfor %}
+      </select>
+    </label>
+  </p>
+  <p>{% translate "A Virtual Device needs a Hypervisor and is always in its Site." %}</p>
+  <button type="submit">{% translate "Add Device" %}</button>
+</form>
+{% endif %}
+{% endblock %}

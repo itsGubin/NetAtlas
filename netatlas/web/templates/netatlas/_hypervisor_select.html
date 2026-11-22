@@ -1,0 +1,11 @@
+{% load i18n %}{# Expects `hypervisors`, `selected_parent` and optionally `parent_required`. #}
+<p>
+  <label>{% translate "Hypervisor" %}
+    <select name="parent_id"{% if parent_required %} required{% endif %}>
+      {% if not parent_required %}<option value="">{% translate "None (Physical Device)" %}</option>{% endif %}
+      {% for hypervisor in hypervisors %}
+      <option value="{{ hypervisor.id }}"{% if hypervisor.id == selected_parent %} selected{% endif %}>{{ hypervisor.name }} ({{ hypervisor.site_name }})</option>
+      {% endfor %}
+    </select>
+  </label>
+</p>

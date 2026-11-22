@@ -1,0 +1,56 @@
+{% extends "netatlas/base.html" %}{% load i18n %}
+{% block title %}{{ device.name }} · {{ block.super }}{% endblock %}
+{% block content %}
+<h1>{{ device.name }}</h1>
+{% include "netatlas/_errors.html" %}
+<dl>
+  <dt>{% translate "Kind" %}</dt><dd>{{ device.kind }}</dd>
+  {% if sites|length > 1 %}<dt>{% translate "Site" %}</dt><dd><a href="{% url 'web:site' device.site_id %}">{{ device.site_name }}</a></dd>{% endif %}
+  {% if device.parent_id %}<dt>{% translate "Hypervisor" %}</dt><dd><a href="{% url 'web:device' device.parent_id %}">{{ device.parent_name }}</a></dd>{% endif %}
+  {% if device.device_type_id %}<dt>{% translate "Device Type" %}</dt><dd><a href="{% url 'web:device-type' device.device_type_id %}">{{ device.device_type_name }}</a></dd>{% endif %}
+  <dt>{% translate "Rack height (U)" %}</dt><dd>{{ device.rack_height }}</dd>
+</dl>
+
+{% if virtual_devices %}
+<h2>{% translate "Virtual Devices" %}</h2>
+<ul>
+  {% for entry in virtual_devices %}
+  <li data-depth="{{ entry.depth }}" style="margin-left: {{ entry.depth }}rem"><a href="{% url 'web:device' entry.id %}">{{ entry.name }}</a></li>
+  {% endfor %}
+</ul>
+{% endif %}
+
+<h2>{% translate "Interfaces" %}</h2>
+<table>
+  <thead>
+    <tr><th scope="col">{% translate "Name" %}</th><th scope="col">{% translate "Kind" %}</th></tr>
+  </thead>
+  <tbody>
+    {% for interface in device.interfaces %}
+    <tr><td>{{ interface.name }}</td><td>{{ interface.kind }}</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% if can_edit %}
+<h2>{% translate "Edit Device" %}</h2>
+<form method="post" action="{% url 'web:device' device.id %}">
+  {% csrf_token %}
+  <p><label>{% translate "Name" %} <input name="name" value="{{ form.name|default:'' }}" required></label></p>
+  {% if device.kind == "virtual" %}
+  {% include "netatlas/_hypervisor_select.html" with parent_required=True %}
+  {% else %}
+  {% include "netatlas/_site_select.html" %}
+  <p><label>{% translate "Rack height (U)" %} <input name="rack_height" inputmode="numeric" value="{{ form.rack_height }}" required></label></p>
+  {% endif %}
+  <button type="submit">{% translate "Save" %}</button>
+</form>
+<form method="post" action="{% url 'web:device-delete' device.id %}">
+  {% csrf_token %}
+  <button type="submit">{% translate "Delete Device" %}</button>
+</form>
+{% endif %}
+
+<h2>{% translate "History" %}</h2>
+{% include "netatlas/_history.html" %}
+{% endblock %}
