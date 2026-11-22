@@ -1,0 +1,34 @@
+{% extends "netatlas/base.html" %}{% load i18n %}
+{% block title %}{% translate "Subnets" %} · {{ block.super }}{% endblock %}
+{% block content %}
+<h1>{% translate "Subnets" %}</h1>
+{% include "netatlas/_errors.html" %}
+<table>
+  <thead>
+    <tr>
+      <th scope="col">{% translate "Subnet" %}</th>
+      {% if sites|length > 1 %}<th scope="col">{% translate "Site" %}</th>{% endif %}
+      <th scope="col">{% translate "Utilisation" %}</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for item in subnets %}
+    <tr data-depth="{{ item.depth }}">
+      <td style="padding-left: {{ item.depth }}rem"><a href="{% url 'web:subnet' item.id %}">{{ item.cidr }}</a></td>
+      {% if sites|length > 1 %}<td>{{ item.site_name }}</td>{% endif %}
+      <td>{{ item.utilisation }} %</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% if can_edit %}
+<h2>{% translate "Add Subnet" %}</h2>
+<form method="post" action="{% url 'web:subnets' %}">
+  {% csrf_token %}
+  <p><label>{% translate "CIDR" %} <input name="cidr" value="{{ form.cidr|default:'' }}" placeholder="192.168.1.0/24" required></label></p>
+  {% include "netatlas/_site_select.html" %}
+  <button type="submit">{% translate "Add Subnet" %}</button>
+</form>
+{% endif %}
+{% endblock %}

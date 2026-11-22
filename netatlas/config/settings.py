@@ -34,6 +34,7 @@ INSTALLED_APPS = [
     "netatlas.history",
     "netatlas.places",
     "netatlas.devices",
+    "netatlas.addressing",
     "netatlas.web",
 ]
 

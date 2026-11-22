@@ -20,6 +20,13 @@ from netatlas.accounts.services import (
     revoke_token,
     role_of,
 )
+from netatlas.addressing.services import (
+    create_subnet,
+    delete_subnet,
+    get_subnet,
+    list_subnets,
+    update_subnet,
+)
 from netatlas.devices.services import (
     INTERFACE_KINDS,
     cable_candidates,
@@ -405,6 +412,73 @@ def _render_rack(request, rack_id, errors=(), form=None):
         "form": form or {"name": item.name, "height": item.height},
     }
     return render(request, "netatlas/rack.html", context, status=400 if errors else 200)
+
+
+@require_http_methods(["GET", "POST"])
+def subnets(request):
+    if request.method == "GET":
+        return _render_subnets(request)
+
+    require_editor(request.user)
+    try:
+        create_subnet(
+            request.user,
+            cidr=request.POST.get("cidr", ""),
+            site_id=_required_id(request, "site_id"),
+        )
+    except ValidationError as error:
+        return _render_subnets(request, errors=error.messages, form=request.POST)
+    return redirect("web:subnets")
+
+
+@require_http_methods(["GET", "POST"])
+def subnet(request, subnet_id):
+    if request.method == "GET":
+        return _render_subnet(request, subnet_id)
+
+    require_editor(request.user)
+    try:
+        update_subnet(
+            request.user,
+            subnet_id,
+            cidr=request.POST.get("cidr", ""),
+            site_id=_required_id(request, "site_id"),
+        )
+    except ValidationError as error:
+        return _render_subnet(request, subnet_id, errors=error.messages, form=request.POST)
+    return redirect("web:subnet", subnet_id=subnet_id)
+
+
+@require_POST
+def subnet_remove(request, subnet_id):
+    delete_subnet(request.user, subnet_id)
+    return redirect("web:subnets")
+
+
+def _render_subnets(request, errors=(), form=None):
+    context = {
+        "subnets": list_subnets(request.user),
+        "sites": list_sites(request.user),
+        "selected_site": _submitted_id(request, "site_id"),
+        "errors": errors,
+        "form": form or {},
+    }
+    return render(request, "netatlas/subnets.html", context, status=400 if errors else 200)
+
+
+def _render_subnet(request, subnet_id, errors=(), form=None):
+    item = get_subnet(request.user, subnet_id)
+    in_site = list_subnets(request.user, site_id=item.site_id)
+    context = {
+        "subnet": item,
+        "children": [entry for entry in in_site if entry.parent_id == item.id],
+        "sites": list_sites(request.user),
+        "selected_site": _submitted_id(request, "site_id", item.site_id),
+        "entries": item_history(request.user, "subnet", item.id),
+        "errors": errors,
+        "form": form or {"cidr": item.cidr},
+    }
+    return render(request, "netatlas/subnet.html", context, status=400 if errors else 200)
 
 
 def cables(request):

@@ -102,6 +102,15 @@ Every error has the same shape. `fields` lists messages per field and is empty f
 - A racked Device must be taken out before it changes Site or switches to or from zero height. A Rack holding Devices cannot be deleted.
 - `GET /api/racks/<id>/elevation/` returns `front` and `rear` from the top unit down, plus `zero_height`. A taller Device has `span` on its top unit and `is_covered` on the units below.
 
+## Subnets
+
+`/api/subnets/` supports list, create, read, `PATCH` and delete, for IPv4 and IPv6. Lists filter by `site` and `version`. Every Role can read. Admins and Editors can write.
+
+- `cidr` is stored in canonical form and is unique within a Site (ADR 0002). A value with host bits set, such as `192.168.1.5/24`, is refused with the correct form in the message.
+- Nesting is derived from the addresses. Lists are in tree order, and each Subnet has `parent_id` and `depth`.
+- `utilisation` is the percentage covered by directly nested Subnets, rounded down to one decimal.
+- Deleting a Subnet keeps those nested in it, which move up the tree. A Site with Subnets cannot be deleted.
+
 ## Cables
 
 `/api/cables/` supports list, create, read, `PATCH` (label only) and delete. Lists filter by `device`. Every Role can read. Admins and Editors can write.
