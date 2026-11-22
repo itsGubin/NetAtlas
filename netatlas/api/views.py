@@ -52,6 +52,8 @@ from netatlas.addressing.services import (
 from netatlas.api.authentication import BearerTokenAuthentication
 from netatlas.api.conventions import allowed_filters, paginated, with_tags
 from netatlas.api.serializers import (
+    LiveFieldOptionSerializer,
+    LiveFieldValueSerializer,
     MentionOptionSerializer,
     PageChangeSerializer,
     PageCreateSerializer,
@@ -165,6 +167,8 @@ from netatlas.pages.services import (
     get_item_page,
     get_page,
     list_pages,
+    live_field_options,
+    live_field_values,
     mention_options,
     referenced_by,
     update_page,
@@ -1086,6 +1090,32 @@ class ItemReferencesView(APIView):
         pages = referenced_by(request.user, kind, item_id)
         allowed_filters(request)
         return paginated(request, self, pages, asdict)
+
+
+class PageLiveFieldsView(APIView):
+    @extend_schema(
+        operation_id="page_live_fields_list",
+        description="Every Live Field in the Page with its current value.",
+        parameters=PAGINATION,
+        responses={200: page_of(LiveFieldValueSerializer), **errors(400, 401, 403, 404)},
+    )
+    def get(self, request, page_id):
+        values = live_field_values(request.user, page_id)
+        allowed_filters(request)
+        return paginated(request, self, values, asdict)
+
+
+class LiveFieldOptionsView(APIView):
+    @extend_schema(
+        operation_id="live_field_options_list",
+        description="Up to 20 item fields matching every word of `q`.",
+        parameters=[OpenApiParameter("q", str, description="Words from the item or field name.")],
+        responses={200: LiveFieldOptionSerializer(many=True), **errors(400, 401, 403)},
+    )
+    def get(self, request):
+        filters = allowed_filters(request, "q")
+        options = live_field_options(request.user, filters.get("q", ""))
+        return Response([asdict(option) for option in options])
 
 
 class MentionOptionsView(APIView):

@@ -1,4 +1,4 @@
-// The `@` Mention picker of the Page editor. Without JavaScript the textarea still works.
+// The `@` Mention and `@{` Live Field picker. Without JavaScript the textarea still works.
 (() => {
   const textarea = document.querySelector("textarea[data-mention-url]");
   const list = document.getElementById("mention-options");
@@ -10,11 +10,24 @@
 
   const options = () => [...list.querySelectorAll("[role=option]")];
 
-  // The `@word` being typed at the caret, if any.
+  // The `@word` or `@{words` being typed at the caret, if any.
   const typed = () => {
     const before = textarea.value.slice(0, textarea.selectionStart);
-    const match = before.match(/(?:^|\s)@([^\s@[\]]*)$/);
-    return match ? { query: match[1], start: before.length - match[1].length - 1 } : null;
+    const live = before.match(/(?:^|\s)@\{([^\n{}]*)$/);
+    if (live) {
+      return {
+        query: live[1],
+        start: before.length - live[1].length - 2,
+        url: textarea.dataset.liveFieldUrl,
+      };
+    }
+    const mention = before.match(/(?:^|\s)@([^\s@[\]{}]*)$/);
+    if (!mention) return null;
+    return {
+      query: mention[1],
+      start: before.length - mention[1].length - 1,
+      url: textarea.dataset.mentionUrl,
+    };
   };
 
   const close = () => {
@@ -44,9 +57,9 @@
     textarea.focus();
   };
 
-  const search = async (query) => {
+  const search = async ({ query, url: base }) => {
     const current = ++request;
-    const url = `${textarea.dataset.mentionUrl}?q=${encodeURIComponent(query)}`;
+    const url = `${base}?q=${encodeURIComponent(query)}`;
     try {
       const response = await fetch(url, { headers: { Accept: "text/html" } });
       if (!response.ok || current !== request) return;
@@ -67,7 +80,7 @@
     clearTimeout(timer);
     const found = typed();
     if (!found) return close();
-    timer = setTimeout(() => search(found.query), 150);
+    timer = setTimeout(() => search(found), 150);
   });
 
   textarea.addEventListener("keydown", (event) => {

@@ -521,6 +521,9 @@ class DeletePreviewSerializer(serializers.Serializer):
     deleted = DeleteImpactSerializer(many=True)
     changed = DeleteImpactSerializer(many=True)
     moved = DeleteImpactSerializer(many=True)
+    broken_live_fields = DeleteImpactSerializer(
+        many=True, help_text="Live Fields on remaining Pages that will show as broken."
+    )
     blocked = serializers.ListField(
         child=serializers.CharField(), help_text="Why the delete would be refused."
     )
@@ -581,6 +584,24 @@ class MentionOptionSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     label = serializers.CharField()
     token = serializers.CharField(help_text="The text an editor inserts for this Mention.")
+
+
+class LiveFieldOptionSerializer(serializers.Serializer):
+    kind = serializers.CharField()
+    id = serializers.IntegerField()
+    field = serializers.CharField()
+    label = serializers.CharField()
+    token = serializers.CharField(help_text="The text an editor inserts for this Live Field.")
+
+
+class LiveFieldValueSerializer(serializers.Serializer):
+    kind = serializers.CharField()
+    item_id = serializers.IntegerField()
+    field = serializers.CharField()
+    field_label = serializers.CharField()
+    item_label = serializers.CharField(allow_null=True, help_text="Null if the item is deleted.")
+    values = serializers.ListField(child=serializers.CharField())
+    is_broken = serializers.BooleanField(help_text="True if the item is deleted.")
 
 
 class ErrorBodySerializer(serializers.Serializer):

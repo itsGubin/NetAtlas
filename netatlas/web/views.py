@@ -85,6 +85,7 @@ from netatlas.pages.services import (
     editor_body,
     get_page,
     list_pages,
+    live_field_options,
     mention_options,
     update_page,
 )
@@ -1093,6 +1094,7 @@ def _render_delete(request, kind, item_id, errors=(), status=200):
         "deleted": _impact_rows(preview.deleted),
         "changed": _impact_rows(preview.changed),
         "moved": _impact_rows(preview.moved),
+        "broken_live_fields": _impact_rows(preview.broken_live_fields),
         "item_url": reverse(f"web:{kind}", args=[item_id]),
         "errors": [*errors, *preview.blocked],
     }
@@ -1153,6 +1155,15 @@ def page_mention_options(request):
     options = [
         {"token": option.token, "label": option.label, "kind_name": names[option.kind]}
         for option in mention_options(request.user, request.GET.get("q", ""))
+    ]
+    return render(request, "netatlas/_mention_options.html", {"options": options})
+
+
+def page_live_field_options(request):
+    names = _kind_names()
+    options = [
+        {"token": option.token, "label": option.label, "kind_name": names[option.kind]}
+        for option in live_field_options(request.user, request.GET.get("q", ""))
     ]
     return render(request, "netatlas/_mention_options.html", {"options": options})
 

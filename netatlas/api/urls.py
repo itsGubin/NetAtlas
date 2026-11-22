@@ -99,6 +99,12 @@ urlpatterns = [
     path("subnets/<int:subnet_id>/", views.SubnetDetailView.as_view(), name="subnet-detail"),
     path("pages/", views.PageListView.as_view(), name="page-list"),
     path("pages/<int:page_id>/", views.PageDetailView.as_view(), name="page-detail"),
+    path(
+        "pages/<int:page_id>/live-fields/",
+        views.PageLiveFieldsView.as_view(),
+        name="page-live-fields",
+    ),
+    path("live-field-options/", views.LiveFieldOptionsView.as_view(), name="live-field-options"),
     path("mention-options/", views.MentionOptionsView.as_view(), name="mention-options"),
     path("items/<slug:kind>/<int:item_id>/page/", views.ItemPageView.as_view(), name="item-page"),
     path(
