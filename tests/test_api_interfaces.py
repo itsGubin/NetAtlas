@@ -61,6 +61,8 @@ def test_writer_manages_an_interface(client_with_role, role):
         "peer_device_name": None,
         "paired_interface_id": None,
         "paired_interface_name": None,
+        "untagged_vlan": None,
+        "tagged_vlans": [],
     }
 
     changed = patch_json(client, f"/api/interfaces/{interface_id}/", {"lag_id": None})

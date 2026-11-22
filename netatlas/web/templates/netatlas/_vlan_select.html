@@ -1,0 +1,13 @@
+{% load i18n %}{# Expects `vlans` and `selected_vlan`. Shown only once a VLAN exists. #}
+{% if vlans %}
+<p>
+  <label>{% translate "VLAN" %}
+    <select name="vlan_id">
+      <option value="">{% translate "None" %}</option>
+      {% for item in vlans %}
+      <option value="{{ item.id }}"{% if item.id == selected_vlan %} selected{% endif %}>{{ item.number }}{% if item.name %} {{ item.name }}{% endif %}{% if sites|length > 1 %} ({{ item.site_name }}){% endif %}</option>
+      {% endfor %}
+    </select>
+  </label>
+</p>
+{% endif %}

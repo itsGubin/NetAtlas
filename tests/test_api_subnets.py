@@ -45,6 +45,9 @@ def test_writer_manages_a_subnet(client_with_role, role):
         "parent_cidr": None,
         "depth": 0,
         "utilisation": 0.0,
+        "vlan_id": None,
+        "vlan_number": None,
+        "vlan_name": None,
     }
 
     changed = patch_json(client, f"/api/subnets/{subnet_id}/", {"cidr": "10.0.1.0/24"})

@@ -133,6 +133,16 @@ class Interface(TrackedModel):
     paired_with = models.OneToOneField(
         "self", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
     )
+    untagged_vlan = models.ForeignKey(
+        "addressing.Vlan",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="untagged_interfaces",
+    )
+    tagged_vlans = models.ManyToManyField(
+        "addressing.Vlan", blank=True, related_name="tagged_interfaces"
+    )
 
     class Meta:
         constraints = [

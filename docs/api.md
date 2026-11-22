@@ -111,6 +111,17 @@ Every error has the same shape. `fields` lists messages per field and is empty f
 - `utilisation` is the percentage covered by directly nested Subnets, rounded down to one decimal.
 - Deleting a Subnet keeps those nested in it, which move up the tree. A Site with Subnets cannot be deleted.
 
+## VLANs
+
+`/api/vlans/` supports list, create, read, `PATCH` (number and name) and delete. Lists filter by `site`. Every Role can read. Admins and Editors can write.
+
+- `number` is 1 to 4094 and unique within a Site (ADR 0002). A VLAN's Site cannot change.
+- `vlan_id` on a Subnet binds it to a VLAN of the same Site.
+- `PUT /api/interfaces/<id>/vlans/` with `{"untagged_vlan_id", "tagged_vlan_ids"}` replaces an Interface's VLANs. All must be in its Device's Site, and one VLAN cannot be both untagged and tagged.
+- VLANs live on a LAG, not on its members. An Interface with VLANs must drop them before joining a LAG.
+- A Device or Subnet using VLANs cannot move to another Site until they are removed. For a Device, this includes everything nested on it.
+- `GET /api/vlans/<id>/usage/` lists the Subnets and Interfaces using a VLAN. A VLAN in use cannot be deleted.
+
 ## Cables
 
 `/api/cables/` supports list, create, read, `PATCH` (label only) and delete. Lists filter by `device`. Every Role can read. Admins and Editors can write.
@@ -126,7 +137,7 @@ Every error has the same shape. `fields` lists messages per field and is empty f
 
 - Inherit from `TrackedModel`, and set `history_kind` and any `history_exclude` fields.
 - Write it only through `create_item`, `update_item` and `delete_item` in `netatlas/history/services.py`. They enforce the Role and record History in the same transaction. Any other write raises `UntrackedWrite`.
-- Many-to-many fields are not recorded automatically. A slice that adds one must record its changes.
+- Write many-to-many fields with `update_item(actor, item, many_to_many={"field": ids})`, which records them in the same History entry. Any other write raises `UntrackedWrite`.
 
 ## Adding an endpoint
 

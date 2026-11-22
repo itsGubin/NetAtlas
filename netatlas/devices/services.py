@@ -14,6 +14,7 @@ from django.http import Http404
 from django.utils.translation import gettext as _
 
 from netatlas.accounts.services import require_editor, require_role
+from netatlas.addressing.models import Vlan
 from netatlas.devices.models import Cable, Device, DeviceType, Interface, Rack
 from netatlas.history.services import create_item, delete_item, update_item
 
@@ -33,6 +34,8 @@ _INTERFACE_RELATIONS = (
     "interfaces__paired_with",
     "interfaces__cable_as_a__interface_b__device",
     "interfaces__cable_as_b__interface_a__device",
+    "interfaces__untagged_vlan",
+    "interfaces__tagged_vlans",
 )
 # Any fixed number. It identifies this lock among Postgres advisory locks.
 _DEVICE_TREE_LOCK = 7_400_801
@@ -45,6 +48,13 @@ class DeviceTypeSummary:
     model_name: str
     rack_height: int
     interfaces: list[dict]
+
+
+@dataclass(frozen=True)
+class VlanRef:
+    id: int
+    number: int
+    name: str
 
 
 @dataclass(frozen=True)
@@ -62,6 +72,8 @@ class InterfaceSummary:
     peer_device_name: str | None
     paired_interface_id: int | None
     paired_interface_name: str | None
+    untagged_vlan: VlanRef | None
+    tagged_vlans: list[VlanRef]
 
 
 @dataclass(frozen=True)
@@ -282,6 +294,13 @@ def update_device(actor, device_id: int, **values) -> DeviceSummary:
         elif device.rack_id:
             _check_racked_device_change(device, values)
 
+        if values.get("site_id", device.site_id) != device.site_id and _uses_vlans(
+            [device.pk, *(entry.pk for entry in nested)]
+        ):
+            # VLAN 10 can mean something else in every Site, so nothing is carried over.
+            message = _("Remove the VLANs from its Interfaces before moving it to another Site.")
+            raise _field_error("site_id", message)
+
         updated = update_item(actor, device, **values)
         if updated.site_id != device.site_id:
             for entry in nested:
@@ -345,6 +364,9 @@ def update_interface(actor, interface_id: int, **values) -> InterfaceSummary:
             message = _("Remove this Interface's LAG, Cable or pair before changing its kind.")
             raise _field_error("kind", message)
         _check_interface_rules(interface.device, kind, values.get("lag_id", interface.lag_id))
+        if values.get("lag_id") and (interface.untagged_vlan_id or interface.tagged_vlans.all()):
+            message = _("Remove this Interface's VLANs before it joins a LAG.")
+            raise _field_error("lag_id", message)
         update_item(actor, interface, **values)
     return _interface_summary(_find_interface(interface_id))
 
@@ -759,7 +781,9 @@ def _find_interface(interface_id: int):
             "paired_with",
             "cable_as_a__interface_b__device",
             "cable_as_b__interface_a__device",
+            "untagged_vlan",
         )
+        .prefetch_related("tagged_vlans")
         .filter(pk=interface_id)
         .first()
     )
@@ -785,6 +809,62 @@ def _interface_summary(interface) -> InterfaceSummary:
         peer_device_name=peer.device.name if peer else None,
         paired_interface_id=paired.pk if paired else None,
         paired_interface_name=paired.name if paired else None,
+        untagged_vlan=_vlan_ref(interface.untagged_vlan) if interface.untagged_vlan_id else None,
+        tagged_vlans=[
+            _vlan_ref(vlan)
+            for vlan in sorted(interface.tagged_vlans.all(), key=lambda v: v.number)
+        ],
+    )
+
+
+def _vlan_ref(vlan) -> VlanRef:
+    return VlanRef(id=vlan.pk, number=vlan.number, name=vlan.name)
+
+
+def set_interface_vlans(
+    actor, interface_id: int, untagged_vlan_id: int | None, tagged_vlan_ids
+) -> InterfaceSummary:
+    """Replace an Interface's VLANs. All must be in its Device's Site, as one History entry."""
+    require_editor(actor)
+    tagged_ids = set(tagged_vlan_ids)
+    with transaction.atomic():
+        _lock_device_tree()
+        interface = _find_interface(interface_id)
+        wanted = tagged_ids | ({untagged_vlan_id} if untagged_vlan_id is not None else set())
+        # The row locks stop a VLAN from being deleted while it is being assigned.
+        vlans = {v.pk: v for v in Vlan.objects.select_for_update().filter(pk__in=wanted)}
+        site_id = interface.device.site_id
+        if untagged_vlan_id is not None:
+            _check_interface_vlan(vlans.get(untagged_vlan_id), site_id, "untagged_vlan_id")
+        for vlan_id in sorted(tagged_ids):
+            _check_interface_vlan(vlans.get(vlan_id), site_id, "tagged_vlan_ids")
+        if untagged_vlan_id in tagged_ids:
+            message = _("A VLAN cannot be both untagged and tagged on one Interface.")
+            raise _field_error("tagged_vlan_ids", message)
+        if interface.lag_id and wanted:
+            field = "untagged_vlan_id" if untagged_vlan_id is not None else "tagged_vlan_ids"
+            raise _field_error(field, _("Set VLANs on the LAG, not on its members."))
+        update_item(
+            actor,
+            interface,
+            untagged_vlan_id=untagged_vlan_id,
+            many_to_many={"tagged_vlans": sorted(tagged_ids)},
+        )
+    return _interface_summary(_find_interface(interface_id))
+
+
+def _check_interface_vlan(vlan, site_id: int, field: str) -> None:
+    if vlan is None:
+        raise _field_error(field, _("This VLAN does not exist."))
+    if vlan.site_id != site_id:
+        raise _field_error(field, _("Choose a VLAN in the Device's Site."))
+
+
+def _uses_vlans(device_ids: list[int]) -> bool:
+    return (
+        Interface.objects.filter(device_id__in=device_ids)
+        .filter(Q(untagged_vlan__isnull=False) | Q(tagged_vlans__isnull=False))
+        .exists()
     )
 
 

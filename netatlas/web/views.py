@@ -22,10 +22,16 @@ from netatlas.accounts.services import (
 )
 from netatlas.addressing.services import (
     create_subnet,
+    create_vlan,
     delete_subnet,
+    delete_vlan,
     get_subnet,
+    get_vlan,
     list_subnets,
+    list_vlans,
     update_subnet,
+    update_vlan,
+    vlan_usage,
 )
 from netatlas.devices.services import (
     INTERFACE_KINDS,
@@ -55,6 +61,7 @@ from netatlas.devices.services import (
     parse_interface_lines,
     place_device,
     rack_elevation,
+    set_interface_vlans,
     trace_interface,
     unpair_interface,
     unrack_device,
@@ -414,6 +421,103 @@ def _render_rack(request, rack_id, errors=(), form=None):
     return render(request, "netatlas/rack.html", context, status=400 if errors else 200)
 
 
+@require_POST
+def interface_vlans(request, interface_id):
+    require_editor(request.user)
+    try:
+        untagged = _posted_id(request, "untagged_vlan_id")
+        tagged = _posted_ids(request, "tagged_vlan_ids")
+        set_interface_vlans(request.user, interface_id, untagged, tagged)
+    except ValidationError as error:
+        return _render_interface(request, interface_id, errors=error.messages)
+    return redirect("web:interface", interface_id=interface_id)
+
+
+def _posted_ids(request, field: str) -> list[int]:
+    try:
+        return [int(value) for value in request.POST.getlist(field)]
+    except ValueError as error:
+        raise ValidationError({field: [_("This item does not exist.")]}) from error
+
+
+@require_http_methods(["GET", "POST"])
+def vlans(request):
+    if request.method == "GET":
+        return _render_vlans(request)
+
+    require_editor(request.user)
+    try:
+        create_vlan(
+            request.user,
+            number=_vlan_number(request),
+            site_id=_required_id(request, "site_id"),
+            name=request.POST.get("name", ""),
+        )
+    except ValidationError as error:
+        return _render_vlans(request, errors=error.messages, form=request.POST)
+    return redirect("web:vlans")
+
+
+@require_http_methods(["GET", "POST"])
+def vlan(request, vlan_id):
+    if request.method == "GET":
+        return _render_vlan(request, vlan_id)
+
+    require_editor(request.user)
+    try:
+        update_vlan(
+            request.user,
+            vlan_id,
+            number=_vlan_number(request),
+            name=request.POST.get("name", ""),
+        )
+    except ValidationError as error:
+        return _render_vlan(request, vlan_id, errors=error.messages, form=request.POST)
+    return redirect("web:vlan", vlan_id=vlan_id)
+
+
+@require_POST
+def vlan_remove(request, vlan_id):
+    try:
+        delete_vlan(request.user, vlan_id)
+    except ValidationError as error:
+        return _render_vlan(request, vlan_id, errors=error.messages)
+    return redirect("web:vlans")
+
+
+def _vlan_number(request) -> int:
+    try:
+        return forms.IntegerField(min_value=1, max_value=4094).clean(
+            request.POST.get("number", "")
+        )
+    except ValidationError as error:
+        raise ValidationError({"number": error.messages}) from error
+
+
+def _render_vlans(request, errors=(), form=None):
+    context = {
+        "vlans": list_vlans(request.user),
+        "sites": list_sites(request.user),
+        "selected_site": _submitted_id(request, "site_id"),
+        "errors": errors,
+        "form": form or {},
+    }
+    return render(request, "netatlas/vlans.html", context, status=400 if errors else 200)
+
+
+def _render_vlan(request, vlan_id, errors=(), form=None):
+    usage = vlan_usage(request.user, vlan_id)
+    context = {
+        "vlan": usage.vlan,
+        "usage": usage,
+        "sites": list_sites(request.user),
+        "entries": item_history(request.user, "vlan", vlan_id),
+        "errors": errors,
+        "form": form or {"number": usage.vlan.number, "name": usage.vlan.name},
+    }
+    return render(request, "netatlas/vlan.html", context, status=400 if errors else 200)
+
+
 @require_http_methods(["GET", "POST"])
 def subnets(request):
     if request.method == "GET":
@@ -425,6 +529,7 @@ def subnets(request):
             request.user,
             cidr=request.POST.get("cidr", ""),
             site_id=_required_id(request, "site_id"),
+            vlan_id=_posted_id(request, "vlan_id"),
         )
     except ValidationError as error:
         return _render_subnets(request, errors=error.messages, form=request.POST)
@@ -438,11 +543,14 @@ def subnet(request, subnet_id):
 
     require_editor(request.user)
     try:
+        # The field is absent while the Site has no VLANs, which must change nothing.
+        vlan = {"vlan_id": _posted_id(request, "vlan_id")} if "vlan_id" in request.POST else {}
         update_subnet(
             request.user,
             subnet_id,
             cidr=request.POST.get("cidr", ""),
             site_id=_required_id(request, "site_id"),
+            **vlan,
         )
     except ValidationError as error:
         return _render_subnet(request, subnet_id, errors=error.messages, form=request.POST)
@@ -459,6 +567,8 @@ def _render_subnets(request, errors=(), form=None):
     context = {
         "subnets": list_subnets(request.user),
         "sites": list_sites(request.user),
+        "vlans": list_vlans(request.user),
+        "selected_vlan": _submitted_id(request, "vlan_id"),
         "selected_site": _submitted_id(request, "site_id"),
         "errors": errors,
         "form": form or {},
@@ -473,6 +583,8 @@ def _render_subnet(request, subnet_id, errors=(), form=None):
         "subnet": item,
         "children": [entry for entry in in_site if entry.parent_id == item.id],
         "sites": list_sites(request.user),
+        "vlans": list_vlans(request.user, site_id=item.site_id),
+        "selected_vlan": _submitted_id(request, "vlan_id", item.vlan_id),
         "selected_site": _submitted_id(request, "site_id", item.site_id),
         "entries": item_history(request.user, "subnet", item.id),
         "errors": errors,
@@ -531,6 +643,12 @@ def _interface_values(request) -> dict:
     return values
 
 
+def _submitted_tagged(request, item) -> set[int]:
+    if "untagged_vlan_id" in request.POST or "tagged_vlan_ids" in request.POST:
+        return {int(v) for v in request.POST.getlist("tagged_vlan_ids") if v.isdecimal()}
+    return {vlan.id for vlan in item.tagged_vlans}
+
+
 def _interface_kinds(device_kind: str) -> tuple[str, ...]:
     return ("virtual",) if device_kind == "virtual" else INTERFACE_KINDS
 
@@ -545,6 +663,12 @@ def _render_interface(request, interface_id, errors=(), form=None):
         "interface_kinds": _interface_kinds(owner.kind),
         "lags": [i for i in owner.interfaces if i.kind == "lag" and i.id != item.id],
         "selected_lag": _submitted_id(request, "lag_id", item.lag_id),
+        # VLANs live on the LAG, so its members get no VLAN form.
+        "vlan_choices": list_vlans(request.user, site_id=owner.site_id) if not item.lag_id else [],
+        "selected_untagged": _submitted_id(
+            request, "untagged_vlan_id", item.untagged_vlan.id if item.untagged_vlan else None
+        ),
+        "selected_tagged": _submitted_tagged(request, item),
         "interface_form": form or {"name": item.name, "kind": item.kind},
         "is_physical": is_physical,
         "cable_choices": cable_candidates(request.user, item.id)

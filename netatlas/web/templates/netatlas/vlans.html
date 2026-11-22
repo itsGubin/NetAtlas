@@ -1,0 +1,35 @@
+{% extends "netatlas/base.html" %}{% load i18n %}
+{% block title %}{% translate "VLANs" %} · {{ block.super }}{% endblock %}
+{% block content %}
+<h1>{% translate "VLANs" %}</h1>
+{% include "netatlas/_errors.html" %}
+<table>
+  <thead>
+    <tr>
+      <th scope="col">{% translate "Number" %}</th>
+      <th scope="col">{% translate "Name" %}</th>
+      {% if sites|length > 1 %}<th scope="col">{% translate "Site" %}</th>{% endif %}
+    </tr>
+  </thead>
+  <tbody>
+    {% for item in vlans %}
+    <tr>
+      <td><a href="{% url 'web:vlan' item.id %}">{{ item.number }}</a></td>
+      <td>{{ item.name|default:"—" }}</td>
+      {% if sites|length > 1 %}<td>{{ item.site_name }}</td>{% endif %}
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% if can_edit %}
+<h2>{% translate "Add VLAN" %}</h2>
+<form method="post" action="{% url 'web:vlans' %}">
+  {% csrf_token %}
+  <p><label>{% translate "Number" %} <input name="number" inputmode="numeric" value="{{ form.number|default:'' }}" required></label></p>
+  <p><label>{% translate "Name" %} <input name="name" value="{{ form.name|default:'' }}"></label></p>
+  {% include "netatlas/_site_select.html" %}
+  <button type="submit">{% translate "Add VLAN" %}</button>
+</form>
+{% endif %}
+{% endblock %}

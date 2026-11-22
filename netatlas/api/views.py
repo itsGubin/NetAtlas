@@ -26,10 +26,16 @@ from netatlas.accounts.services import (
 )
 from netatlas.addressing.services import (
     create_subnet,
+    create_vlan,
     delete_subnet,
+    delete_vlan,
     get_subnet,
+    get_vlan,
     list_subnets,
+    list_vlans,
     update_subnet,
+    update_vlan,
+    vlan_usage,
 )
 from netatlas.api.authentication import BearerTokenAuthentication
 from netatlas.api.conventions import allowed_filters, paginated
@@ -51,6 +57,7 @@ from netatlas.api.serializers import (
     InterfaceChangeSerializer,
     InterfacePairSerializer,
     InterfaceSerializer,
+    InterfaceVlansSerializer,
     NewCableSerializer,
     NewDeviceSerializer,
     NewDeviceTypeSerializer,
@@ -58,6 +65,7 @@ from netatlas.api.serializers import (
     NewRackSerializer,
     NewSiteSerializer,
     NewSubnetSerializer,
+    NewVlanSerializer,
     NewTokenSerializer,
     NewUserSerializer,
     RackChangeSerializer,
@@ -75,6 +83,10 @@ from netatlas.api.serializers import (
     TokenSerializer,
     UserSerializer,
     VirtualDeviceSerializer,
+    VlanChangeSerializer,
+    VlanFilterSerializer,
+    VlanSerializer,
+    VlanUsageSerializer,
     errors,
     page_of,
 )
@@ -102,6 +114,7 @@ from netatlas.devices.services import (
     pair_interfaces,
     place_device,
     rack_elevation,
+    set_interface_vlans,
     trace_interface,
     unpair_interface,
     unrack_device,
@@ -609,6 +622,79 @@ class RackElevationView(APIView):
     )
     def get(self, request, rack_id):
         return Response(asdict(rack_elevation(request.user, rack_id)))
+
+
+class InterfaceVlansView(APIView):
+    @extend_schema(
+        description="Replaces the Interface's VLANs. All must be in its Device's Site.",
+        request=InterfaceVlansSerializer,
+        responses={200: InterfaceSerializer, **errors(400, 401, 403, 404)},
+    )
+    def put(self, request, interface_id):
+        require_editor(request.user)
+        body = InterfaceVlansSerializer(data=request.data)
+        body.is_valid(raise_exception=True)
+        interface = set_interface_vlans(request.user, interface_id, **body.validated_data)
+        return Response(asdict(interface))
+
+
+class VlanListView(APIView):
+    @extend_schema(
+        operation_id="vlans_list",
+        parameters=[*PAGINATION, OpenApiParameter("site", int)],
+        responses={200: page_of(VlanSerializer), **errors(400, 401, 403)},
+    )
+    def get(self, request):
+        require_role(request.user)
+        filters = VlanFilterSerializer(data=allowed_filters(request, "site"))
+        filters.is_valid(raise_exception=True)
+        vlans = list_vlans(request.user, site_id=filters.validated_data.get("site"))
+        return paginated(request, self, vlans, asdict)
+
+    @extend_schema(
+        description="The number is 1 to 4094 and unique within a Site.",
+        request=NewVlanSerializer,
+        responses={201: VlanSerializer, **errors(400, 401, 403)},
+    )
+    def post(self, request):
+        require_editor(request.user)
+        body = NewVlanSerializer(data=request.data)
+        body.is_valid(raise_exception=True)
+        vlan = create_vlan(request.user, **body.validated_data)
+        return Response(asdict(vlan), status=http_status.HTTP_201_CREATED)
+
+
+class VlanDetailView(APIView):
+    @extend_schema(responses={200: VlanSerializer, **errors(401, 403, 404)})
+    def get(self, request, vlan_id):
+        return Response(asdict(get_vlan(request.user, vlan_id)))
+
+    @extend_schema(
+        request=VlanChangeSerializer,
+        responses={200: VlanSerializer, **errors(400, 401, 403, 404)},
+    )
+    def patch(self, request, vlan_id):
+        require_editor(request.user)
+        body = VlanChangeSerializer(data=request.data)
+        body.is_valid(raise_exception=True)
+        return Response(asdict(update_vlan(request.user, vlan_id, **body.validated_data)))
+
+    @extend_schema(
+        description="A VLAN still used by a Subnet or an Interface cannot be deleted.",
+        responses={204: None, **errors(400, 401, 403, 404)},
+    )
+    def delete(self, request, vlan_id):
+        delete_vlan(request.user, vlan_id)
+        return Response(status=http_status.HTTP_204_NO_CONTENT)
+
+
+class VlanUsageView(APIView):
+    @extend_schema(
+        description="The Subnets bound to this VLAN and the Interfaces carrying it.",
+        responses={200: VlanUsageSerializer, **errors(401, 403, 404)},
+    )
+    def get(self, request, vlan_id):
+        return Response(asdict(vlan_usage(request.user, vlan_id)))
 
 
 class SubnetListView(APIView):

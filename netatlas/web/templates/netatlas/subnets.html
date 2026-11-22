@@ -28,6 +28,7 @@
   {% csrf_token %}
   <p><label>{% translate "CIDR" %} <input name="cidr" value="{{ form.cidr|default:'' }}" placeholder="192.168.1.0/24" required></label></p>
   {% include "netatlas/_site_select.html" %}
+  {% include "netatlas/_vlan_select.html" %}
   <button type="submit">{% translate "Add Subnet" %}</button>
 </form>
 {% endif %}

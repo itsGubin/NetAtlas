@@ -45,7 +45,7 @@ def create_item(actor, model, **values):
         item = model(**values)
         item.full_clean()
         item.save()
-        after = _snapshot(item)
+        after = _snapshot(item, include_many_to_many=False)
         _record(actor, item, Change.Action.CREATED, {f: (None, v) for f, v in after.items()})
     return item
 
@@ -56,17 +56,22 @@ def create_system_item(model, **values):
         item = model(**values)
         item.full_clean()
         item.save()
-        after = _snapshot(item)
+        after = _snapshot(item, include_many_to_many=False)
         _record(None, item, Change.Action.CREATED, {f: (None, v) for f, v in after.items()})
     return item
 
 
-def update_item(actor, item, **values):
-    """Change an item and record the fields that actually changed."""
+def update_item(actor, item, *, many_to_many=None, **values):
+    """Change an item and record what actually changed, as one History entry.
+
+    `many_to_many` maps a many-to-many field to the full list of IDs it should hold.
+    """
     require_editor(actor)
     model = type(item)
+    many_to_many = many_to_many or {}
     writable = {name for field in _fields(model) for name in (field.name, field.attname)}
-    unknown = set(values) - writable
+    related = {field.name for field in model._meta.many_to_many}
+    unknown = (set(values) - writable) | (set(many_to_many) - related)
     if unknown:
         raise TypeError(f"{model.__name__} has no field {', '.join(sorted(unknown))}")
 
@@ -82,6 +87,9 @@ def update_item(actor, item, **values):
         changed = [name for name, value in _stored_values(current).items() if stored[name] != value]
         if changed:
             current.save(update_fields=changed)
+        for name, ids in many_to_many.items():
+            getattr(current, name).set(ids)
+        if changed or many_to_many:
             _record_difference(actor, current, before)
     return current
 
@@ -185,14 +193,20 @@ def _stored_values(item) -> dict[str, Any]:
     return {field.name: field.value_from_object(item) for field in _fields(type(item))}
 
 
-def _snapshot(item) -> dict[str, Any]:
+def _snapshot(item, include_many_to_many: bool = True) -> dict[str, Any]:
     """The item's recorded fields, as the JSON values History stores."""
     model = type(item)
-    return {
+    snapshot = {
         field.name: json.loads(json.dumps(field.value_from_object(item), cls=DjangoJSONEncoder))
         for field in _fields(model)
         if field.name not in model.history_exclude
     }
+    if include_many_to_many:
+        for field in model._meta.many_to_many:
+            if field.name not in model.history_exclude:
+                ids = getattr(item, field.name).values_list("pk", flat=True)
+                snapshot[field.name] = sorted(ids)
+    return snapshot
 
 
 def _entry(change) -> HistoryEntry:
