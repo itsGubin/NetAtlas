@@ -1,0 +1,5 @@
+{% load i18n %}{# Inside a Page form. Shows the rendered Page while it is being written. #}
+<section aria-labelledby="page-preview-title">
+  <h2 id="page-preview-title">{% translate "Preview" %}</h2>
+  <article id="page-preview" aria-live="polite" hx-post="{% url 'web:page-preview' %}" hx-trigger="load, input delay:400ms from:closest form" hx-include="closest form" hx-swap="innerHTML"></article>
+</section>

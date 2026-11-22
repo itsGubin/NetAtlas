@@ -11,7 +11,7 @@
     {% for template in templates %}
     <tr>
       <td><a href="{% url 'web:page-template' template.id %}">{{ template.name }}</a></td>
-      <td>{% if template.device_type_name %}{{ template.device_type_name }}{% else %}{% translate "Default" %}: {{ template.item_kind }}{% endif %}</td>
+      <td>{% if template.device_type_name %}{{ template.device_type_name }}{% else %}{% translate "Default" %}: {{ template.kind_name }}{% endif %}</td>
       <td>{{ template.page_count }}</td>
     </tr>
     {% endfor %}

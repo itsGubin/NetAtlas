@@ -23,6 +23,7 @@
 <form method="post" action="{% url 'web:pages' %}">
   {% csrf_token %}
   {% include "netatlas/_page_fields.html" with show_title=True %}
+  {% include "netatlas/_page_preview_box.html" %}
   <button type="submit">{% translate "Add Page" %}</button>
 </form>
 <script src="{% static 'netatlas/page-editor.js' %}" defer></script>

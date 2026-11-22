@@ -5,6 +5,7 @@
 {% include "netatlas/_errors.html" %}
 <form method="post" action="{% url 'web:page-edit' page.id %}">
   {% csrf_token %}
+  <input type="hidden" name="page_id" value="{{ page.id }}">
   {% if sections %}
   {% for section in sections %}
   <input type="hidden" name="section_name" value="{{ section.name }}">
@@ -20,7 +21,7 @@
   {% else %}
   {% include "netatlas/_page_fields.html" with show_title=show_title %}
   {% endif %}
-  {% if sections or not page.item_id %}<button type="submit">{% translate "Save" %}</button>{% endif %}
+  {% if sections or not page.item_id %}{% include "netatlas/_page_preview_box.html" %}<button type="submit">{% translate "Save" %}</button>{% endif %}
 </form>
 <p><a href="{% url 'web:page' page.id %}">{% translate "Cancel" %}</a></p>
 <script src="{% static 'netatlas/page-editor.js' %}" defer></script>

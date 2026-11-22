@@ -1,5 +1,6 @@
 from dataclasses import asdict
 
+from django.urls import reverse
 from django.utils.translation import gettext as _
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
@@ -61,6 +62,8 @@ from netatlas.api.serializers import (
     AttachmentSerializer,
     AttachmentUploadSerializer,
     PageChangeSerializer,
+    PagePreviewRequestSerializer,
+    PagePreviewSerializer,
     PageTemplateChangeSerializer,
     PageTemplateCreateSerializer,
     PageTemplatePreviewSerializer,
@@ -188,6 +191,7 @@ from netatlas.pages.services import (
     delete_page_template,
     get_page_template,
     list_page_templates,
+    preview_page,
     preview_template_change,
     update_page_template,
     create_page,
@@ -1071,6 +1075,25 @@ class PageListView(APIView):
         body.is_valid(raise_exception=True)
         page = create_page(request.user, **body.validated_data)
         return Response(asdict(page), status=http_status.HTTP_201_CREATED)
+
+
+class PagePreviewView(APIView):
+    @extend_schema(
+        operation_id="page_preview",
+        description="Renders Page content as saving it would show it. Nothing is saved.",
+        request=PagePreviewRequestSerializer,
+        responses={200: PagePreviewSerializer, **errors(400, 401, 403, 404)},
+    )
+    def post(self, request):
+        require_editor(request.user)
+        body = PagePreviewRequestSerializer(data=request.data)
+        body.is_valid(raise_exception=True)
+        html = preview_page(
+            request.user,
+            lambda kind, item_id: reverse(f"web:{kind}", args=[item_id]),
+            **body.validated_data,
+        )
+        return Response({"html": html})
 
 
 class PageDetailView(APIView):
