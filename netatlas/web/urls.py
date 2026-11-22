@@ -113,6 +113,16 @@ urlpatterns = [
         {"kind": "subnet"},
         name="subnet-delete",
     ),
+    path("pages/", views.pages, name="pages"),
+    path("pages/mention-options/", views.page_mention_options, name="mention-options"),
+    path("pages/<int:page_id>/", views.page, name="page"),
+    path("pages/<int:page_id>/edit/", views.page_edit, name="page-edit"),
+    path(
+        "pages/<int:item_id>/delete/",
+        views.delete_confirmation,
+        {"kind": "page"},
+        name="page-delete",
+    ),
     path("tags/", views.tags, name="tags"),
     path("tags/<int:tag_id>/", views.tag, name="tag"),
     path(

@@ -19,6 +19,8 @@
 <p><a href="{% url 'web:cable-delete' cable.id %}">{% translate "Delete Cable" %}</a></p>
 {% endif %}
 
+{% include "netatlas/_item_documentation.html" with doc_kind="cable" doc_item=cable.id %}
+
 {% include "netatlas/_tags.html" with tag_kind="cable" tag_item=cable.id %}
 
 <h2>{% translate "History" %}</h2>

@@ -553,6 +553,36 @@ class TagUsageSerializer(serializers.Serializer):
     items = TaggedItemSerializer(many=True)
 
 
+class PageSummarySerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    title = serializers.CharField(help_text="An Item Page shows its item's current name.")
+    item_kind = serializers.CharField(allow_null=True, help_text="Null on a Standalone Page.")
+    item_id = serializers.IntegerField(allow_null=True, help_text="Null on a Standalone Page.")
+
+
+class PageSerializer(PageSummarySerializer):
+    body = serializers.CharField(
+        allow_blank=True, help_text="Markdown. A Mention is written `@[device:12]`."
+    )
+
+
+class PageCreateSerializer(serializers.Serializer):
+    title = serializers.CharField(max_length=200)
+    body = serializers.CharField(required=False, allow_blank=True, trim_whitespace=False)
+
+
+class PageChangeSerializer(serializers.Serializer):
+    title = serializers.CharField(required=False, max_length=200)
+    body = serializers.CharField(required=False, allow_blank=True, trim_whitespace=False)
+
+
+class MentionOptionSerializer(serializers.Serializer):
+    kind = serializers.CharField()
+    id = serializers.IntegerField()
+    label = serializers.CharField()
+    token = serializers.CharField(help_text="The text an editor inserts for this Mention.")
+
+
 class ErrorBodySerializer(serializers.Serializer):
     code = serializers.CharField()
     message = serializers.CharField()

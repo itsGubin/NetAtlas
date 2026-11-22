@@ -83,6 +83,7 @@ def test_every_kind_of_documented_item_can_be_previewed():
         "cable",
         "device-type",
         "tag",
+        "page",
     }
 
 
@@ -103,6 +104,7 @@ def test_device_preview_lists_everything_it_affects_and_changes_nothing(
     assert labels(preview.deleted) == [
         ("cable", "A-1: server eth0 – switch p1"),
         ("interface", "server eth0"),
+        ("page", "server"),
     ]
     assert [(c.kind, c.label, c.effect) for c in preview.changed] == [
         ("ip-address", "10.0.0.5", "becomes Reserved")
@@ -272,7 +274,8 @@ def test_simple_kinds_preview_and_delete(editor, site, device, port, kind):
         item = create_ip_address(editor, address="10.0.0.5", site_id=site.id)
 
     preview = preview_delete(editor, kind, item.id)
-    assert (preview.blocked, preview.deleted, preview.changed) == ([], [], [])
+    assert (preview.blocked, preview.changed) == ([], [])
+    assert [i.kind for i in preview.deleted] == (["page"] if kind in ("vlan", "rack") else [])
 
     confirm_delete(editor, kind, item.id, preview.fingerprint)
 

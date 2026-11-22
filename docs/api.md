@@ -153,9 +153,19 @@ Every error has the same shape. `fields` lists messages per field and is empty f
 - Adding a Tag by name creates it on first use. Adding, removing and deleting are recorded in each item's History.
 - Every list of documented items accepts `?tag=prod`. Repeat it to require several Tags, as in `?tag=prod&tag=dmz`.
 
+## Pages
+
+`/api/pages/` supports list, create, read, `PATCH` and delete. Every Role can read. Admins and Editors can write.
+
+- Customers, Sites, Racks, Devices, VLANs and Subnets each have exactly one Item Page, created and deleted with the item. `GET /api/items/<kind>/<id>/page/` returns it. Its title is the item's current name and cannot be set.
+- `POST /api/pages/` creates a Standalone Page. Only Standalone Pages can be deleted directly.
+- `body` is Markdown. Raw HTML is shown as text. A Mention is written `@[device:12]`, with any documented item kind. The form `@[any text](device:12)` is accepted and stored as `@[device:12]`. Text in code spans and code blocks is not a Mention.
+- `GET /api/items/<kind>/<id>/referenced-by/` lists every Page that mentions an item. `GET /api/mention-options/?q=core` finds items to mention.
+- Pages accept Tags through `/api/items/page/<id>/tags/`, and `GET /api/pages/?tag=prod` filters by them.
+
 ## Delete preview
 
-`GET /api/delete-preview/<kind>/<id>/` shows what deleting an item would do, without changing anything. It requires the Admin or Editor Role. `kind` is `customer`, `site`, `device`, `interface`, `rack`, `vlan`, `subnet`, `dhcp-range`, `ip-address`, `cable`, `device-type` or `tag`.
+`GET /api/delete-preview/<kind>/<id>/` shows what deleting an item would do, without changing anything. It requires the Admin or Editor Role. `kind` is `customer`, `site`, `device`, `interface`, `rack`, `vlan`, `subnet`, `dhcp-range`, `ip-address`, `cable`, `device-type`, `tag` or `page`.
 
 - `deleted`, `changed` and `moved` list every affected item with its `effect`. `moved` holds what moves up the Subnet tree.
 - `blocked` holds the reasons a delete would be refused. A blocked item still returns `200`.

@@ -1,0 +1,13 @@
+{% extends "netatlas/base.html" %}{% load i18n static %}
+{% block title %}{% translate "Edit" %} {{ page.title }} · {{ block.super }}{% endblock %}
+{% block content %}
+<h1>{% blocktranslate with title=page.title %}Edit {{ title }}{% endblocktranslate %}</h1>
+{% include "netatlas/_errors.html" %}
+<form method="post" action="{% url 'web:page-edit' page.id %}">
+  {% csrf_token %}
+  {% include "netatlas/_page_fields.html" with show_title=show_title %}
+  <button type="submit">{% translate "Save" %}</button>
+</form>
+<p><a href="{% url 'web:page' page.id %}">{% translate "Cancel" %}</a></p>
+<script src="{% static 'netatlas/page-editor.js' %}" defer></script>
+{% endblock %}

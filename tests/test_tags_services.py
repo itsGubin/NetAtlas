@@ -24,6 +24,7 @@ from netatlas.devices.services import (
 )
 from netatlas.history.models import UntrackedWrite
 from netatlas.history.services import item_history
+from netatlas.pages.services import create_page
 from netatlas.places.services import create_customer, create_site
 from netatlas.tagging.models import Tag
 from netatlas.tagging.services import (
@@ -83,6 +84,7 @@ def one_of_each(editor, site, device):
         "ip-address": create_ip_address(editor, address="10.0.0.5", site_id=site.id).id,
         "cable": create_cable(editor, first.id, second.id).id,
         "device-type": create_device_type(editor, make="Acme", model_name="SW").id,
+        "page": create_page(editor, "Guest Wi-Fi").id,
     }
 
 

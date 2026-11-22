@@ -107,6 +107,8 @@
 <p><a href="{% url 'web:device-delete' device.id %}">{% translate "Delete Device" %}</a></p>
 {% endif %}
 
+{% include "netatlas/_item_documentation.html" with doc_kind="device" doc_item=device.id %}
+
 {% include "netatlas/_tags.html" with tag_kind="device" tag_item=device.id %}
 
 <h2>{% translate "History" %}</h2>

@@ -1,0 +1,1 @@
+{% for option in options %}<li role="option" id="mention-option-{{ forloop.counter }}" aria-selected="false" data-token="{{ option.token }}">{{ option.label }} <small>({{ option.kind_name }})</small></li>{% endfor %}

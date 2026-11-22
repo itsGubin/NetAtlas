@@ -32,6 +32,8 @@
 <p><a href="{% url 'web:rack-delete' rack.id %}">{% translate "Delete Rack" %}</a></p>
 {% endif %}
 
+{% include "netatlas/_item_documentation.html" with doc_kind="rack" doc_item=rack.id %}
+
 {% include "netatlas/_tags.html" with tag_kind="rack" tag_item=rack.id %}
 
 <h2>{% translate "History" %}</h2>

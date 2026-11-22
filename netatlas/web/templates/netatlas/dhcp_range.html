@@ -21,6 +21,8 @@
 <p><a href="{% url 'web:dhcp-range-delete' dhcp_range.id %}">{% translate "Delete DHCP Range" %}</a></p>
 {% endif %}
 
+{% include "netatlas/_item_documentation.html" with doc_kind="dhcp-range" doc_item=dhcp_range.id %}
+
 {% include "netatlas/_tags.html" with tag_kind="dhcp-range" tag_item=dhcp_range.id %}
 
 <h2>{% translate "History" %}</h2>

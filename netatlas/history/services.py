@@ -18,6 +18,7 @@ from django.http import Http404
 
 from netatlas.accounts.services import require_editor, require_role
 from netatlas.history.models import Change, FieldChange, TrackedModel, allow_tracked_writes
+from netatlas.history.signals import item_created, items_deleting
 
 SYSTEM_ACTOR = "system"
 
@@ -81,6 +82,7 @@ def create_item(actor, model, **values):
         item.save()
         after = _snapshot(item, include_many_to_many=False)
         _record(actor, item, Change.Action.CREATED, {f: (None, v) for f, v in after.items()})
+        item_created.send(sender=model, actor=actor, item=item)
     return item
 
 
@@ -92,6 +94,7 @@ def create_system_item(model, **values):
         item.save()
         after = _snapshot(item, include_many_to_many=False)
         _record(None, item, Change.Action.CREATED, {f: (None, v) for f, v in after.items()})
+        item_created.send(sender=model, actor=None, item=item)
     return item
 
 
@@ -134,6 +137,7 @@ def delete_item(actor, item) -> None:
     with transaction.atomic(), allow_tracked_writes():
         current = type(item)._base_manager.select_for_update().get(pk=item.pk)
         removed = _removed_with(current)
+        items_deleting.send(sender=type(current), actor=actor, items=removed)
         removed_keys = {(type(entry), entry.pk) for entry in removed}
         survivors = [
             (survivor, _snapshot(survivor))

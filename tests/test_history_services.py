@@ -15,6 +15,8 @@ from tests.history_items.models import Label, Part, Widget
 
 # Users, Roles, tokens and History itself are not documented items.
 UNTRACKED_APPS = {"accounts", "history"}
+# Rebuilt from a tracked Page body on every save, so the body's History already covers it.
+DERIVED_MODELS = {"pages.Mention"}
 
 
 @pytest.fixture
@@ -262,7 +264,7 @@ def test_every_netatlas_model_is_tracked_unless_it_is_infrastructure():
         and not issubclass(model, TrackedModel)
     }
 
-    assert untracked == set()
+    assert untracked == DERIVED_MODELS
 
 
 def roleless_user():
