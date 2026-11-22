@@ -3,5 +3,6 @@
 .env
 staticfiles
 media
+backups
 **/__pycache__
 tests
