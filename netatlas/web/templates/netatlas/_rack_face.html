@@ -1,0 +1,15 @@
+{% load i18n %}{# One Rack elevation. Expects `units` from the top down, `face` and `face_label`. #}
+<table data-face="{{ face }}">
+  <caption>{{ face_label }}</caption>
+  <thead>
+    <tr><th scope="col">{% translate "Unit" %}</th><th scope="col">{% translate "Device" %}</th></tr>
+  </thead>
+  <tbody>
+    {% for slot in units %}
+    <tr>
+      <th scope="row">{{ slot.unit }}</th>
+      {% if not slot.device_id %}<td>—</td>{% elif not slot.is_covered %}<td rowspan="{{ slot.span }}"><a href="{% url 'web:device' slot.device_id %}">{{ slot.device_name }}</a></td>{% endif %}
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>

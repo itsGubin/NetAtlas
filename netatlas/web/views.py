@@ -27,27 +27,35 @@ from netatlas.devices.services import (
     create_device,
     create_device_type,
     create_interface,
+    create_rack,
     delete_cable,
     delete_device,
     delete_device_type,
     delete_interface,
+    delete_rack,
     format_interface_lines,
     get_cable,
     get_device,
     get_device_type,
     get_interface,
+    get_rack,
     list_cables,
     list_device_types,
     list_devices,
+    list_racks,
     pair_candidates,
     pair_interfaces,
     parse_interface_lines,
+    place_device,
+    rack_elevation,
     trace_interface,
     unpair_interface,
+    unrack_device,
     update_cable,
     update_device,
     update_device_type,
     update_interface,
+    update_rack,
     virtual_devices,
 )
 from netatlas.history.services import item_history
@@ -303,6 +311,102 @@ def interface_trace(request, interface_id):
     return render(request, "netatlas/trace.html", context)
 
 
+@require_POST
+def device_placement(request, device_id):
+    require_editor(request.user)
+    try:
+        rack_id = _required_id(request, "rack_id")
+        unit = forms.IntegerField(required=False).clean(request.POST.get("unit", ""))
+        face = request.POST.get("face") or None
+        place_device(request.user, device_id, rack_id, unit=unit, face=face)
+    except ValidationError as error:
+        return _render_device(request, device_id, errors=error.messages)
+    return redirect("web:device", device_id=device_id)
+
+
+@require_POST
+def device_unrack(request, device_id):
+    unrack_device(request.user, device_id)
+    return redirect("web:device", device_id=device_id)
+
+
+@require_http_methods(["GET", "POST"])
+def racks(request):
+    if request.method == "GET":
+        return _render_racks(request)
+
+    require_editor(request.user)
+    try:
+        create_rack(
+            request.user,
+            name=request.POST.get("name", ""),
+            site_id=_required_id(request, "site_id"),
+            height=_rack_height(request),
+        )
+    except ValidationError as error:
+        return _render_racks(request, errors=error.messages, form=request.POST)
+    return redirect("web:racks")
+
+
+@require_http_methods(["GET", "POST"])
+def rack(request, rack_id):
+    if request.method == "GET":
+        return _render_rack(request, rack_id)
+
+    require_editor(request.user)
+    try:
+        update_rack(
+            request.user,
+            rack_id,
+            name=request.POST.get("name", ""),
+            height=_rack_height(request),
+        )
+    except ValidationError as error:
+        return _render_rack(request, rack_id, errors=error.messages, form=request.POST)
+    return redirect("web:rack", rack_id=rack_id)
+
+
+@require_POST
+def rack_remove(request, rack_id):
+    try:
+        delete_rack(request.user, rack_id)
+    except ValidationError as error:
+        return _render_rack(request, rack_id, errors=error.messages)
+    return redirect("web:racks")
+
+
+def _rack_height(request) -> int:
+    try:
+        return forms.IntegerField(min_value=1, max_value=100).clean(
+            request.POST.get("height", "")
+        )
+    except ValidationError as error:
+        raise ValidationError({"height": error.messages}) from error
+
+
+def _render_racks(request, errors=(), form=None):
+    context = {
+        "racks": list_racks(request.user),
+        "sites": list_sites(request.user),
+        "selected_site": _submitted_id(request, "site_id"),
+        "errors": errors,
+        "form": form or {"height": 42},
+    }
+    return render(request, "netatlas/racks.html", context, status=400 if errors else 200)
+
+
+def _render_rack(request, rack_id, errors=(), form=None):
+    item = get_rack(request.user, rack_id)
+    context = {
+        "rack": item,
+        "elevation": rack_elevation(request.user, rack_id),
+        "entries": item_history(request.user, "rack", item.id),
+        "errors": errors,
+        "form": form or {"name": item.name, "height": item.height},
+    }
+    return render(request, "netatlas/rack.html", context, status=400 if errors else 200)
+
+
 def cables(request):
     return render(request, "netatlas/cables.html", {"cables": list_cables(request.user)})
 
@@ -341,7 +445,7 @@ def _render_cable(request, cable_id, errors=(), label=None):
 def _required_id(request, field: str) -> int:
     value = _posted_id(request, field)
     if value is None:
-        raise ValidationError({field: [_("Choose an Interface.")]})
+        raise ValidationError({field: [_("Make a choice.")]})
     return value
 
 
@@ -465,6 +569,12 @@ def _render_device(request, device_id, errors=(), form=None, interface_form=None
         "interface_kinds": _interface_kinds(item.kind),
         "lags": [i for i in item.interfaces if i.kind == "lag"],
         "selected_lag": _submitted_id(request, "lag_id"),
+        "racks": list_racks(request.user, site_id=item.site_id) if item.kind == "physical" else [],
+        "selected_rack": _submitted_id(request, "rack_id", item.rack_id),
+        "placement": {
+            "unit": request.POST.get("unit", item.rack_unit or ""),
+            "face": request.POST.get("face", item.rack_face),
+        },
     }
     return render(request, "netatlas/device.html", context, status=400 if errors else 200)
 

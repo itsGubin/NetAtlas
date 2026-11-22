@@ -98,7 +98,7 @@ def delete_site(actor, site_id: int) -> None:
         try:
             delete_item(actor, Site.objects.get(pk=site_id))
         except ProtectedError as error:
-            message = _("This Site still has Devices. Move or delete them first.")
+            message = _("This Site still has Devices or Racks. Move or delete them first.")
             raise ValidationError(message) from error
 
 

@@ -1,3 +1,4 @@
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
@@ -28,12 +29,40 @@ class DeviceType(TrackedModel):
         return f"{self.make} {self.model_name}"
 
 
+class Rack(TrackedModel):
+    """A rack of mounting units within a Site, numbered from 1 at the bottom."""
+
+    history_kind = "rack"
+
+    site = models.ForeignKey("places.Site", on_delete=models.PROTECT, related_name="racks")
+    name = models.CharField(max_length=100)
+    height = models.PositiveSmallIntegerField(
+        default=42, validators=[MinValueValidator(1), MaxValueValidator(100)]
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["site", "name"],
+                name="unique_rack_name_per_site",
+                violation_error_message=_("A Rack with this name already exists in this Site."),
+            )
+        ]
+
+    def __str__(self):
+        return self.name
+
+
 class Device(TrackedModel):
     """Anything documented that has Interfaces or takes rack space, in exactly one Site."""
 
     class Kind(models.TextChoices):
         PHYSICAL = "physical", _("Physical")
         VIRTUAL = "virtual", _("Virtual")
+
+    class Face(models.TextChoices):
+        FRONT = "front", _("Front")
+        REAR = "rear", _("Rear")
 
     history_kind = "device"
 
@@ -49,6 +78,12 @@ class Device(TrackedModel):
         DeviceType, null=True, blank=True, on_delete=models.SET_NULL, related_name="devices"
     )
     rack_height = models.PositiveSmallIntegerField(default=1)
+    rack = models.ForeignKey(
+        Rack, null=True, blank=True, on_delete=models.PROTECT, related_name="devices"
+    )
+    # The Rack Position: lowest unit and Face. A zero-height Device is in the Rack without one.
+    rack_unit = models.PositiveSmallIntegerField(null=True, blank=True)
+    rack_face = models.CharField(max_length=8, choices=Face.choices, blank=True, default="")
 
     class Meta:
         constraints = [
@@ -56,6 +91,14 @@ class Device(TrackedModel):
                 fields=["site", "name"],
                 name="unique_device_name_per_site",
                 violation_error_message=_("A Device with this name already exists in this Site."),
+            ),
+            models.CheckConstraint(
+                condition=models.Q(rack_unit__isnull=True, rack_face="")
+                | models.Q(
+                    rack__isnull=False, rack_unit__gte=1, rack_face__in=["front", "rear"]
+                ),
+                name="rack_position_is_complete",
+                violation_error_message=_("A Rack Position needs a Rack, a unit and a Face."),
             ),
             models.CheckConstraint(
                 condition=models.Q(kind="physical", parent__isnull=True)
