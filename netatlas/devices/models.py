@@ -86,6 +86,10 @@ class Interface(TrackedModel):
     lag = models.ForeignKey(
         "self", null=True, blank=True, on_delete=models.SET_NULL, related_name="members"
     )
+    # The other side of a pass-through, such as a patch panel's front and rear. Set on both.
+    paired_with = models.OneToOneField(
+        "self", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
 
     class Meta:
         constraints = [
@@ -98,3 +102,30 @@ class Interface(TrackedModel):
 
     def __str__(self):
         return f"{self.device.name} {self.name}"
+
+
+class Cable(TrackedModel):
+    """A physical link joining exactly two Physical Interfaces, stored lowest ID first."""
+
+    history_kind = "cable"
+
+    interface_a = models.OneToOneField(
+        Interface, on_delete=models.CASCADE, related_name="cable_as_a"
+    )
+    interface_b = models.OneToOneField(
+        Interface, on_delete=models.CASCADE, related_name="cable_as_b"
+    )
+    label = models.CharField(max_length=100, blank=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(interface_a__lt=models.F("interface_b")),
+                name="cable_ends_are_ordered_and_different",
+                violation_error_message=_("A Cable needs two different Interfaces."),
+            )
+        ]
+
+    def __str__(self):
+        ends = f"{self.interface_a} – {self.interface_b}"
+        return f"{self.label}: {ends}" if self.label else ends

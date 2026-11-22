@@ -54,6 +54,13 @@ def test_writer_manages_an_interface(client_with_role, role):
         "kind": "physical",
         "lag_id": lag.id,
         "lag_name": "lag0",
+        "cable_id": None,
+        "peer_interface_id": None,
+        "peer_interface_name": None,
+        "peer_device_id": None,
+        "peer_device_name": None,
+        "paired_interface_id": None,
+        "paired_interface_name": None,
     }
 
     changed = patch_json(client, f"/api/interfaces/{interface_id}/", {"lag_id": None})

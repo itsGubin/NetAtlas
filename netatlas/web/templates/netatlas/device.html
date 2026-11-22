@@ -27,6 +27,7 @@
       <th scope="col">{% translate "Name" %}</th>
       <th scope="col">{% translate "Kind" %}</th>
       <th scope="col">{% translate "LAG" %}</th>
+      <th scope="col">{% translate "Connected to" %}</th>
     </tr>
   </thead>
   <tbody>
@@ -35,6 +36,7 @@
       <td><a href="{% url 'web:interface' interface.id %}">{{ interface.name }}</a></td>
       <td>{{ interface.kind }}</td>
       <td>{% if interface.lag_id %}<a href="{% url 'web:interface' interface.lag_id %}">{{ interface.lag_name }}</a>{% else %}—{% endif %}</td>
+      <td>{% if interface.peer_interface_id %}<a href="{% url 'web:interface' interface.peer_interface_id %}">{{ interface.peer_device_name }} {{ interface.peer_interface_name }}</a>{% else %}—{% endif %}</td>
     </tr>
     {% endfor %}
   </tbody>

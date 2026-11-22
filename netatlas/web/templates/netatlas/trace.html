@@ -1,0 +1,20 @@
+{% extends "netatlas/base.html" %}{% load i18n %}
+{% block title %}{% translate "Cable trace" %} · {{ block.super }}{% endblock %}
+{% block content %}
+<h1>{% translate "Cable trace" %}</h1>
+{% if trace.is_loop %}<p role="status">{% translate "This path loops back on itself, so it has no far end." %}</p>{% endif %}
+<ol>
+  {% for hop in trace.hops %}
+  <li data-trace-start="{{ hop.is_start|yesno:'true,false' }}">
+    <a href="{% url 'web:device' hop.device_id %}">{{ hop.device_name }}</a>
+    <a href="{% url 'web:interface' hop.interface_id %}"><span>{{ hop.interface_name }}</span></a>
+    ({{ hop.site_name }}){% if hop.is_start %} · {% translate "start" %}{% endif %}
+    {% if hop.cable_id %}
+    <p>↓ <a href="{% url 'web:cable' hop.cable_id %}">{% if hop.cable_label %}{{ hop.cable_label }}{% else %}{% translate "Cable" %} #{{ hop.cable_id }}{% endif %}</a></p>
+    {% elif not forloop.last %}
+    <p>↓ {% translate "front/rear pair" %}</p>
+    {% endif %}
+  </li>
+  {% endfor %}
+</ol>
+{% endblock %}

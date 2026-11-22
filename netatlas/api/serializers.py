@@ -133,6 +133,13 @@ class InterfaceSerializer(serializers.Serializer):
     kind = serializers.ChoiceField(choices=INTERFACE_KINDS)
     lag_id = serializers.IntegerField(allow_null=True)
     lag_name = serializers.CharField(allow_null=True)
+    cable_id = serializers.IntegerField(allow_null=True)
+    peer_interface_id = serializers.IntegerField(allow_null=True)
+    peer_interface_name = serializers.CharField(allow_null=True)
+    peer_device_id = serializers.IntegerField(allow_null=True)
+    peer_device_name = serializers.CharField(allow_null=True)
+    paired_interface_id = serializers.IntegerField(allow_null=True)
+    paired_interface_name = serializers.CharField(allow_null=True)
 
 
 class NewInterfaceSerializer(serializers.Serializer):
@@ -197,6 +204,55 @@ class VirtualDeviceSerializer(serializers.Serializer):
     name = serializers.CharField()
     parent_id = serializers.IntegerField()
     depth = serializers.IntegerField(help_text="1 runs directly on the requested Device.")
+
+
+class CableSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    label = serializers.CharField(allow_blank=True)
+    interface_a_id = serializers.IntegerField()
+    interface_a_name = serializers.CharField()
+    device_a_id = serializers.IntegerField()
+    device_a_name = serializers.CharField()
+    interface_b_id = serializers.IntegerField()
+    interface_b_name = serializers.CharField()
+    device_b_id = serializers.IntegerField()
+    device_b_name = serializers.CharField()
+
+
+class NewCableSerializer(serializers.Serializer):
+    interface_a_id = serializers.IntegerField()
+    interface_b_id = serializers.IntegerField()
+    label = serializers.CharField(max_length=100, required=False, allow_blank=True)
+
+
+class CableChangeSerializer(serializers.Serializer):
+    label = serializers.CharField(max_length=100, required=False, allow_blank=True)
+
+
+class CableFilterSerializer(serializers.Serializer):
+    device = serializers.IntegerField(required=False)
+
+
+class InterfacePairSerializer(serializers.Serializer):
+    interface_id = serializers.IntegerField(help_text="The other Interface of the pair.")
+
+
+class TraceHopSerializer(serializers.Serializer):
+    interface_id = serializers.IntegerField()
+    interface_name = serializers.CharField()
+    device_id = serializers.IntegerField()
+    device_name = serializers.CharField()
+    site_name = serializers.CharField()
+    is_start = serializers.BooleanField()
+    cable_id = serializers.IntegerField(
+        allow_null=True, help_text="The Cable to the next hop. Null across a front/rear pair."
+    )
+    cable_label = serializers.CharField(allow_null=True, allow_blank=True)
+
+
+class CableTraceSerializer(serializers.Serializer):
+    hops = TraceHopSerializer(many=True)
+    is_loop = serializers.BooleanField()
 
 
 class ErrorBodySerializer(serializers.Serializer):

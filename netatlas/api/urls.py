@@ -42,4 +42,16 @@ urlpatterns = [
         views.InterfaceDetailView.as_view(),
         name="interface-detail",
     ),
+    path(
+        "interfaces/<int:interface_id>/trace/",
+        views.InterfaceTraceView.as_view(),
+        name="interface-trace",
+    ),
+    path(
+        "interfaces/<int:interface_id>/pair/",
+        views.InterfacePairView.as_view(),
+        name="interface-pair",
+    ),
+    path("cables/", views.CableListView.as_view(), name="cable-list"),
+    path("cables/<int:cable_id>/", views.CableDetailView.as_view(), name="cable-detail"),
 ]

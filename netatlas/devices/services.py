@@ -9,11 +9,12 @@ from itertools import product
 
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, connection, transaction
+from django.db.models import Q
 from django.http import Http404
 from django.utils.translation import gettext as _
 
 from netatlas.accounts.services import require_editor, require_role
-from netatlas.devices.models import Device, DeviceType, Interface
+from netatlas.devices.models import Cable, Device, DeviceType, Interface
 from netatlas.history.services import create_item, delete_item, update_item
 
 INTERFACE_KINDS = ("physical", "virtual", "lag")
@@ -25,6 +26,13 @@ _RANGE = re.compile(r"\[(\d{1,9})-(\d{1,9})\]")
 _NAME = re.compile(r"[^\s\x00-\x1f\x7f]{1,64}")
 _UPDATABLE_DEVICE_FIELDS = {"name", "site_id", "parent_id", "rack_height"}
 _UPDATABLE_INTERFACE_FIELDS = {"name", "kind", "lag_id"}
+_UPDATABLE_CABLE_FIELDS = {"label"}
+_INTERFACE_RELATIONS = (
+    "interfaces__lag",
+    "interfaces__paired_with",
+    "interfaces__cable_as_a__interface_b__device",
+    "interfaces__cable_as_b__interface_a__device",
+)
 # Any fixed number. It identifies this lock among Postgres advisory locks.
 _DEVICE_TREE_LOCK = 7_400_801
 
@@ -46,6 +54,52 @@ class InterfaceSummary:
     kind: str
     lag_id: int | None
     lag_name: str | None
+    cable_id: int | None
+    peer_interface_id: int | None
+    peer_interface_name: str | None
+    peer_device_id: int | None
+    peer_device_name: str | None
+    paired_interface_id: int | None
+    paired_interface_name: str | None
+
+
+@dataclass(frozen=True)
+class InterfaceChoice:
+    id: int
+    label: str
+
+
+@dataclass(frozen=True)
+class CableSummary:
+    id: int
+    label: str
+    interface_a_id: int
+    interface_a_name: str
+    device_a_id: int
+    device_a_name: str
+    interface_b_id: int
+    interface_b_name: str
+    device_b_id: int
+    device_b_name: str
+
+
+@dataclass(frozen=True)
+class TraceHop:
+    interface_id: int
+    interface_name: str
+    device_id: int
+    device_name: str
+    site_name: str
+    is_start: bool
+    # The Cable leading to the next hop. None when the next hop is a front/rear pair.
+    cable_id: int | None
+    cable_label: str | None
+
+
+@dataclass(frozen=True)
+class CableTrace:
+    hops: list[TraceHop]
+    is_loop: bool
 
 
 @dataclass(frozen=True)
@@ -128,7 +182,7 @@ def list_devices(
     require_role(actor)
     devices = (
         Device.objects.select_related("site", "parent", "device_type")
-        .prefetch_related("interfaces__lag")
+        .prefetch_related(*_INTERFACE_RELATIONS)
         .order_by("name", "pk")
     )
     if site_id is not None:
@@ -245,8 +299,10 @@ def update_interface(actor, interface_id: int, **values) -> InterfaceSummary:
         _lock_device_tree()
         interface = _find_interface(interface_id)
         kind = values.get("kind", interface.kind)
-        if kind != interface.kind and (interface.lag_id or interface.members.exists()):
-            message = _("Remove this Interface's LAG membership before changing its kind.")
+        cable, _peer = _cable_and_peer(interface)
+        in_use = interface.lag_id or interface.paired_with_id or cable
+        if kind != interface.kind and (in_use or interface.members.exists()):
+            message = _("Remove this Interface's LAG, Cable or pair before changing its kind.")
             raise _field_error("kind", message)
         _check_interface_rules(interface.device, kind, values.get("lag_id", interface.lag_id))
         update_item(actor, interface, **values)
@@ -259,6 +315,212 @@ def delete_interface(actor, interface_id: int) -> None:
     with transaction.atomic():
         _lock_device_tree()
         delete_item(actor, _find_interface(interface_id))
+
+
+def list_cables(actor, device_id: int | None = None) -> list[CableSummary]:
+    require_role(actor)
+    cables = Cable.objects.select_related("interface_a__device", "interface_b__device")
+    if device_id is not None:
+        cables = cables.filter(
+            Q(interface_a__device_id=device_id) | Q(interface_b__device_id=device_id)
+        )
+    return [_cable_summary(cable) for cable in cables.order_by("pk")]
+
+
+def get_cable(actor, cable_id: int) -> CableSummary:
+    require_role(actor)
+    return _cable_summary(_find_cable(cable_id))
+
+
+def create_cable(
+    actor, interface_a_id: int, interface_b_id: int, label: str = ""
+) -> CableSummary:
+    """Join two Physical Interfaces. Each can have one Cable, and Sites may differ."""
+    require_editor(actor)
+    with transaction.atomic():
+        _lock_device_tree()
+        first = _cable_end(interface_a_id, "interface_a_id")
+        second = _cable_end(interface_b_id, "interface_b_id")
+        if first.pk == second.pk:
+            raise _field_error("interface_b_id", _("A Cable needs two different Interfaces."))
+        low, high = sorted((first, second), key=lambda interface: interface.pk)
+        cable = create_item(
+            actor, Cable, interface_a=low, interface_b=high, label=label.strip()
+        )
+    return _cable_summary(_find_cable(cable.pk))
+
+
+def update_cable(actor, cable_id: int, **values) -> CableSummary:
+    require_editor(actor)
+    unknown = set(values) - _UPDATABLE_CABLE_FIELDS
+    if unknown:
+        raise TypeError(f"Cannot update {', '.join(sorted(unknown))} on a Cable")
+    if "label" in values:
+        values["label"] = values["label"].strip()
+    with transaction.atomic():
+        _lock_device_tree()
+        update_item(actor, _find_cable(cable_id), **values)
+    return _cable_summary(_find_cable(cable_id))
+
+
+def delete_cable(actor, cable_id: int) -> None:
+    require_editor(actor)
+    with transaction.atomic():
+        _lock_device_tree()
+        delete_item(actor, _find_cable(cable_id))
+
+
+def pair_interfaces(actor, interface_id: int, partner_id: int) -> InterfaceSummary:
+    """Pair two Physical Interfaces of one Device, so a trace can pass through them."""
+    require_editor(actor)
+    with transaction.atomic():
+        _lock_device_tree()
+        interface = _find_interface(interface_id)
+        partner = _reference(Interface, partner_id, "interface_id")
+        if interface.pk == partner.pk or interface.device_id != partner.device_id:
+            message = _("Choose another Interface on the same Device.")
+            raise _field_error("interface_id", message)
+        if Interface.Kind.PHYSICAL != interface.kind or Interface.Kind.PHYSICAL != partner.kind:
+            raise _field_error("interface_id", _("Only Physical Interfaces can be paired."))
+        if interface.paired_with_id or partner.paired_with_id:
+            raise _field_error("interface_id", _("An Interface can only have one pair."))
+        update_item(actor, interface, paired_with=partner)
+        update_item(actor, partner, paired_with=interface)
+    return _interface_summary(_find_interface(interface_id))
+
+
+def unpair_interface(actor, interface_id: int) -> InterfaceSummary:
+    require_editor(actor)
+    with transaction.atomic():
+        _lock_device_tree()
+        interface = _find_interface(interface_id)
+        partner = interface.paired_with
+        if partner is not None:
+            update_item(actor, interface, paired_with=None)
+            update_item(actor, partner, paired_with=None)
+    return _interface_summary(_find_interface(interface_id))
+
+
+def trace_interface(actor, interface_id: int) -> CableTrace:
+    """The whole path through an Interface, end to end, across Cables and pairs."""
+    require_role(actor)
+    start = _find_interface(interface_id)
+    if start.kind != Interface.Kind.PHYSICAL:
+        raise _field_error("interface_id", _("Only Physical Interfaces can be traced."))
+
+    seen = {start.pk}
+    ahead, loop_ahead = _walk(start, seen, through_cable=True)
+    behind, loop_behind = _walk(start, seen, through_cable=False)
+    path = [*reversed(behind), start, *ahead]
+
+    hops = []
+    for index, node in enumerate(path):
+        following = path[index + 1] if index + 1 < len(path) else None
+        cable, peer = _cable_and_peer(node)
+        linked = cable is not None and following is not None and peer.pk == following.pk
+        hops.append(
+            TraceHop(
+                interface_id=node.pk,
+                interface_name=node.name,
+                device_id=node.device_id,
+                device_name=node.device.name,
+                site_name=node.device.site.name,
+                is_start=node.pk == start.pk,
+                cable_id=cable.pk if linked else None,
+                cable_label=cable.label if linked else None,
+            )
+        )
+    return CableTrace(hops=hops, is_loop=loop_ahead or loop_behind)
+
+
+def cable_candidates(actor, interface_id: int) -> list[InterfaceChoice]:
+    """The Physical Interfaces this one could be cabled to."""
+    require_role(actor)
+    return _choices(
+        Interface.objects.filter(
+            kind=Interface.Kind.PHYSICAL, cable_as_a__isnull=True, cable_as_b__isnull=True
+        ).exclude(pk=interface_id)
+    )
+
+
+def pair_candidates(actor, interface_id: int) -> list[InterfaceChoice]:
+    """The Physical Interfaces of the same Device this one could be paired with."""
+    require_role(actor)
+    interface = _find_interface(interface_id)
+    return _choices(
+        Interface.objects.filter(
+            device_id=interface.device_id,
+            kind=Interface.Kind.PHYSICAL,
+            paired_with__isnull=True,
+        ).exclude(pk=interface_id)
+    )
+
+
+def _choices(interfaces) -> list[InterfaceChoice]:
+    ordered = interfaces.select_related("device").order_by("device__name", "name", "pk")
+    return [InterfaceChoice(id=i.pk, label=f"{i.device.name} {i.name}") for i in ordered]
+
+
+def _walk(start, seen: set, through_cable: bool) -> tuple[list, bool]:
+    """Follow alternating Cables and pairs until the path ends or returns to itself."""
+    path = []
+    current = start
+    while True:
+        following = _cable_and_peer(current)[1] if through_cable else current.paired_with
+        if following is None:
+            return path, False
+        if following.pk in seen:
+            return path, True
+        seen.add(following.pk)
+        current = _find_interface(following.pk)
+        path.append(current)
+        through_cable = not through_cable
+
+
+def _cable_end(interface_id: int, field: str):
+    interface = _reference(Interface, interface_id, field)
+    if interface.kind != Interface.Kind.PHYSICAL:
+        raise _field_error(field, _("Only a Physical Interface can take a Cable."))
+    if _cable_and_peer(interface)[0] is not None:
+        raise _field_error(field, _("This Interface already has a Cable."))
+    return interface
+
+
+def _cable_and_peer(interface) -> tuple:
+    """The Interface's Cable and what is on its other end, or (None, None)."""
+    cable = getattr(interface, "cable_as_a", None)
+    if cable is not None:
+        return cable, cable.interface_b
+    cable = getattr(interface, "cable_as_b", None)
+    if cable is not None:
+        return cable, cable.interface_a
+    return None, None
+
+
+def _find_cable(cable_id: int):
+    cable = (
+        Cable.objects.select_related("interface_a__device", "interface_b__device")
+        .filter(pk=cable_id)
+        .first()
+    )
+    if cable is None:
+        raise Http404
+    return cable
+
+
+def _cable_summary(cable) -> CableSummary:
+    return CableSummary(
+        id=cable.pk,
+        label=cable.label,
+        interface_a_id=cable.interface_a_id,
+        interface_a_name=cable.interface_a.name,
+        device_a_id=cable.interface_a.device_id,
+        device_a_name=cable.interface_a.device.name,
+        interface_b_id=cable.interface_b_id,
+        interface_b_name=cable.interface_b.name,
+        device_b_id=cable.interface_b.device_id,
+        device_b_name=cable.interface_b.device.name,
+    )
 
 
 def _check_interface_rules(device, kind: str, lag_id: int | None) -> None:
@@ -275,7 +537,15 @@ def _check_interface_rules(device, kind: str, lag_id: int | None) -> None:
 
 def _find_interface(interface_id: int):
     interface = (
-        Interface.objects.select_related("device", "lag").filter(pk=interface_id).first()
+        Interface.objects.select_related(
+            "device__site",
+            "lag",
+            "paired_with",
+            "cable_as_a__interface_b__device",
+            "cable_as_b__interface_a__device",
+        )
+        .filter(pk=interface_id)
+        .first()
     )
     if interface is None:
         raise Http404
@@ -283,6 +553,8 @@ def _find_interface(interface_id: int):
 
 
 def _interface_summary(interface) -> InterfaceSummary:
+    cable, peer = _cable_and_peer(interface)
+    paired = interface.paired_with
     return InterfaceSummary(
         id=interface.pk,
         device_id=interface.device_id,
@@ -290,6 +562,13 @@ def _interface_summary(interface) -> InterfaceSummary:
         kind=interface.kind,
         lag_id=interface.lag_id,
         lag_name=interface.lag.name if interface.lag_id else None,
+        cable_id=cable.pk if cable else None,
+        peer_interface_id=peer.pk if peer else None,
+        peer_interface_name=peer.name if peer else None,
+        peer_device_id=peer.device_id if peer else None,
+        peer_device_name=peer.device.name if peer else None,
+        paired_interface_id=paired.pk if paired else None,
+        paired_interface_name=paired.name if paired else None,
     )
 
 
@@ -343,7 +622,7 @@ def _field_error(field: str, message: str) -> ValidationError:
 def _find_device(device_id: int):
     device = (
         Device.objects.select_related("site", "parent", "device_type")
-        .prefetch_related("interfaces__lag")
+        .prefetch_related(*_INTERFACE_RELATIONS)
         .filter(pk=device_id)
         .first()
     )

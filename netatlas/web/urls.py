@@ -27,6 +27,13 @@ urlpatterns = [
     path("devices/<int:device_id>/interfaces/", views.device_interfaces, name="device-interfaces"),
     path("interfaces/<int:interface_id>/", views.interface, name="interface"),
     path("interfaces/<int:interface_id>/delete/", views.interface_remove, name="interface-delete"),
+    path("interfaces/<int:interface_id>/cable/", views.interface_cable, name="interface-cable"),
+    path("interfaces/<int:interface_id>/pair/", views.interface_pair, name="interface-pair"),
+    path("interfaces/<int:interface_id>/unpair/", views.interface_unpair, name="interface-unpair"),
+    path("interfaces/<int:interface_id>/trace/", views.interface_trace, name="interface-trace"),
+    path("cables/", views.cables, name="cables"),
+    path("cables/<int:cable_id>/", views.cable, name="cable"),
+    path("cables/<int:cable_id>/delete/", views.cable_remove, name="cable-delete"),
     path("device-types/", views.device_types, name="device-types"),
     path("device-types/<int:device_type_id>/", views.device_type, name="device-type"),
     path(

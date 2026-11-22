@@ -1,0 +1,27 @@
+{% extends "netatlas/base.html" %}{% load i18n %}
+{% block title %}{% translate "Cable" %} · {{ block.super }}{% endblock %}
+{% block content %}
+<h1>{% translate "Cable" %}{% if cable.label %} {{ cable.label }}{% else %} #{{ cable.id }}{% endif %}</h1>
+{% include "netatlas/_errors.html" %}
+<dl>
+  <dt>{% translate "End A" %}</dt><dd><a href="{% url 'web:interface' cable.interface_a_id %}">{{ cable.device_a_name }} {{ cable.interface_a_name }}</a></dd>
+  <dt>{% translate "End B" %}</dt><dd><a href="{% url 'web:interface' cable.interface_b_id %}">{{ cable.device_b_name }} {{ cable.interface_b_name }}</a></dd>
+</dl>
+<p><a href="{% url 'web:interface-trace' cable.interface_a_id %}">{% translate "Trace cable path" %}</a></p>
+
+{% if can_edit %}
+<h2>{% translate "Edit Cable" %}</h2>
+<form method="post" action="{% url 'web:cable' cable.id %}">
+  {% csrf_token %}
+  <p><label>{% translate "Label" %} <input name="label" value="{{ label }}"></label></p>
+  <button type="submit">{% translate "Save" %}</button>
+</form>
+<form method="post" action="{% url 'web:cable-delete' cable.id %}">
+  {% csrf_token %}
+  <button type="submit">{% translate "Delete Cable" %}</button>
+</form>
+{% endif %}
+
+<h2>{% translate "History" %}</h2>
+{% include "netatlas/_history.html" %}
+{% endblock %}

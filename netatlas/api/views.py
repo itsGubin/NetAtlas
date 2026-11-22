@@ -27,6 +27,10 @@ from netatlas.accounts.services import (
 from netatlas.api.authentication import BearerTokenAuthentication
 from netatlas.api.conventions import allowed_filters, paginated
 from netatlas.api.serializers import (
+    CableChangeSerializer,
+    CableFilterSerializer,
+    CableSerializer,
+    CableTraceSerializer,
     CreatedTokenSerializer,
     CustomerChangeSerializer,
     CustomerSerializer,
@@ -37,7 +41,9 @@ from netatlas.api.serializers import (
     DeviceTypeSerializer,
     HistoryEntrySerializer,
     InterfaceChangeSerializer,
+    InterfacePairSerializer,
     InterfaceSerializer,
+    NewCableSerializer,
     NewDeviceSerializer,
     NewDeviceTypeSerializer,
     NewInterfaceSerializer,
@@ -56,18 +62,26 @@ from netatlas.api.serializers import (
     page_of,
 )
 from netatlas.devices.services import (
+    create_cable,
     create_device,
     create_device_type,
     create_interface,
+    delete_cable,
     delete_device,
     delete_device_type,
     delete_interface,
+    get_cable,
     get_device,
     get_device_type,
     get_interface,
+    list_cables,
     list_device_types,
     list_devices,
     list_interfaces,
+    pair_interfaces,
+    trace_interface,
+    unpair_interface,
+    update_cable,
     update_device,
     update_device_type,
     update_interface,
@@ -462,4 +476,84 @@ class InterfaceDetailView(APIView):
     )
     def delete(self, request, interface_id):
         delete_interface(request.user, interface_id)
+        return Response(status=http_status.HTTP_204_NO_CONTENT)
+
+
+class InterfaceTraceView(APIView):
+    @extend_schema(
+        description="The whole path through a Physical Interface, end to end.",
+        responses={200: CableTraceSerializer, **errors(400, 401, 403, 404)},
+    )
+    def get(self, request, interface_id):
+        return Response(asdict(trace_interface(request.user, interface_id)))
+
+
+class InterfacePairView(APIView):
+    @extend_schema(
+        description="Pair two Physical Interfaces of one Device, such as a patch panel's sides.",
+        request=InterfacePairSerializer,
+        responses={200: InterfaceSerializer, **errors(400, 401, 403, 404)},
+    )
+    def put(self, request, interface_id):
+        require_editor(request.user)
+        body = InterfacePairSerializer(data=request.data)
+        body.is_valid(raise_exception=True)
+        interface = pair_interfaces(
+            request.user, interface_id, body.validated_data["interface_id"]
+        )
+        return Response(asdict(interface))
+
+    @extend_schema(responses={204: None, **errors(401, 403, 404)})
+    def delete(self, request, interface_id):
+        unpair_interface(request.user, interface_id)
+        return Response(status=http_status.HTTP_204_NO_CONTENT)
+
+
+class CableListView(APIView):
+    @extend_schema(
+        operation_id="cables_list",
+        parameters=[
+            *PAGINATION,
+            OpenApiParameter("device", int, description="Cables with an end on this Device."),
+        ],
+        responses={200: page_of(CableSerializer), **errors(400, 401, 403)},
+    )
+    def get(self, request):
+        require_role(request.user)
+        filters = CableFilterSerializer(data=allowed_filters(request, "device"))
+        filters.is_valid(raise_exception=True)
+        cables = list_cables(request.user, device_id=filters.validated_data.get("device"))
+        return paginated(request, self, cables, asdict)
+
+    @extend_schema(
+        description="Joins two Physical Interfaces. Each can have one Cable. Sites may differ.",
+        request=NewCableSerializer,
+        responses={201: CableSerializer, **errors(400, 401, 403)},
+    )
+    def post(self, request):
+        require_editor(request.user)
+        body = NewCableSerializer(data=request.data)
+        body.is_valid(raise_exception=True)
+        cable = create_cable(request.user, **body.validated_data)
+        return Response(asdict(cable), status=http_status.HTTP_201_CREATED)
+
+
+class CableDetailView(APIView):
+    @extend_schema(responses={200: CableSerializer, **errors(401, 403, 404)})
+    def get(self, request, cable_id):
+        return Response(asdict(get_cable(request.user, cable_id)))
+
+    @extend_schema(
+        request=CableChangeSerializer,
+        responses={200: CableSerializer, **errors(400, 401, 403, 404)},
+    )
+    def patch(self, request, cable_id):
+        require_editor(request.user)
+        body = CableChangeSerializer(data=request.data)
+        body.is_valid(raise_exception=True)
+        return Response(asdict(update_cable(request.user, cable_id, **body.validated_data)))
+
+    @extend_schema(responses={204: None, **errors(401, 403, 404)})
+    def delete(self, request, cable_id):
+        delete_cable(request.user, cable_id)
         return Response(status=http_status.HTTP_204_NO_CONTENT)

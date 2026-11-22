@@ -91,6 +91,17 @@ Every error has the same shape. `fields` lists messages per field and is empty f
 - `kind` cannot change while the Interface is in a LAG, or is a LAG with members.
 - Deleting a LAG keeps its members, without a LAG, and records that in their History.
 
+## Cables
+
+`/api/cables/` supports list, create, read, `PATCH` (label only) and delete. Lists filter by `device`. Every Role can read. Admins and Editors can write.
+
+- A Cable joins two different Physical Interfaces, which may be in different Sites. An Interface has at most one Cable.
+- Ends are stored lowest Interface ID first, so `interface_a_id` may differ from the order you sent.
+- Deleting an Interface or Device deletes its Cables, and records that in History.
+- `PUT /api/interfaces/<id>/pair/` with `{"interface_id": <other>}` pairs two Physical Interfaces of one Device, such as a patch panel's front and rear. `DELETE` removes the pair. Deleting one side dissolves it.
+- `GET /api/interfaces/<id>/trace/` returns the whole path through a Physical Interface as `hops`, end to end. `cable_id` on a hop is the Cable to the next hop, and is null across a pair. `is_loop` is true if the path returns to itself.
+- An Interface's `kind` cannot change while it has a Cable or a pair.
+
 ## Adding a documented item
 
 - Inherit from `TrackedModel`, and set `history_kind` and any `history_exclude` fields.
