@@ -9,6 +9,7 @@ from netatlas.devices.services import (
     list_interfaces,
 )
 from netatlas.places.services import create_site
+from tests.helpers import confirm_delete
 
 WRITERS = [Role.ADMIN, Role.EDITOR]
 
@@ -51,7 +52,7 @@ def test_writer_adds_edits_and_deletes_an_interface(client_with_role, role):
     edited = get_interface(root(), interface.id)
     assert (edited.name, edited.lag_id) == ("uplink", None)
 
-    response = client.post(f"/interfaces/{interface.id}/delete/")
+    response = confirm_delete(client, f"/interfaces/{interface.id}/delete/")
     assert response.status_code == 302
     assert response["Location"] == f"/devices/{device.id}/"
     assert [i.name for i in list_interfaces(root(), device.id)] == ["lag0"]

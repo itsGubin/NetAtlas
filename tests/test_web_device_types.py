@@ -3,6 +3,7 @@ from django.contrib.auth import authenticate
 
 from netatlas.accounts.roles import Role
 from netatlas.devices.services import create_device_type, list_device_types
+from tests.helpers import confirm_delete
 
 WRITERS = [Role.ADMIN, Role.EDITOR]
 NEW_TYPE = {
@@ -48,7 +49,7 @@ def test_writer_creates_edits_and_deletes_a_device_type(client_with_role, role):
     edited = list_device_types(root())[0]
     assert (edited.rack_height, len(edited.interfaces)) == (0, 3)
 
-    assert client.post(f"/device-types/{created.id}/delete/").status_code == 302
+    assert confirm_delete(client, f"/device-types/{created.id}/delete/").status_code == 302
     assert list_device_types(root()) == []
 
 

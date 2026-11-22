@@ -2,6 +2,7 @@ from django import forms
 from django.core.exceptions import ValidationError
 from django.http import Http404
 from django.shortcuts import redirect, render
+from django.urls import reverse
 from django.utils.cache import patch_cache_control
 from django.utils.translation import gettext as _
 from django.views.decorators.http import require_http_methods, require_POST
@@ -26,10 +27,6 @@ from netatlas.addressing.services import (
     create_ip_address,
     create_subnet,
     create_vlan,
-    delete_dhcp_range,
-    delete_ip_address,
-    delete_subnet,
-    delete_vlan,
     get_dhcp_range,
     get_ip_address,
     get_subnet,
@@ -46,6 +43,7 @@ from netatlas.addressing.services import (
     update_vlan,
     vlan_usage,
 )
+from netatlas.deletion.services import StaleDelete, confirm_delete, preview_delete
 from netatlas.devices.services import (
     INTERFACE_KINDS,
     cable_candidates,
@@ -54,11 +52,6 @@ from netatlas.devices.services import (
     create_device_type,
     create_interface,
     create_rack,
-    delete_cable,
-    delete_device,
-    delete_device_type,
-    delete_interface,
-    delete_rack,
     format_interface_lines,
     get_cable,
     get_device,
@@ -89,8 +82,6 @@ from netatlas.history.services import item_history
 from netatlas.places.services import (
     create_customer,
     create_site,
-    delete_customer,
-    delete_site,
     get_customer,
     get_site,
     list_customers,
@@ -192,12 +183,6 @@ def customer(request, customer_id):
     return redirect("web:customer", customer_id=customer_id)
 
 
-@require_POST
-def customer_remove(request, customer_id):
-    delete_customer(request.user, customer_id)
-    return redirect("web:sites")
-
-
 @require_http_methods(["GET", "POST"])
 def sites(request):
     if request.method == "GET":
@@ -224,15 +209,6 @@ def site(request, site_id):
     except ValidationError as error:
         return _render_site(request, site_id, errors=error.messages, name=name)
     return redirect("web:site", site_id=site_id)
-
-
-@require_POST
-def site_remove(request, site_id):
-    try:
-        delete_site(request.user, site_id)
-    except ValidationError as error:
-        return _render_site(request, site_id, errors=error.messages)
-    return redirect("web:sites")
 
 
 @require_http_methods(["GET", "POST"])
@@ -262,15 +238,6 @@ def device(request, device_id):
 
 
 @require_POST
-def device_remove(request, device_id):
-    try:
-        delete_device(request.user, device_id)
-    except ValidationError as error:
-        return _render_device(request, device_id, errors=error.messages)
-    return redirect("web:devices")
-
-
-@require_POST
 def device_interfaces(request, device_id):
     require_editor(request.user)
     try:
@@ -293,14 +260,6 @@ def interface(request, interface_id):
     except ValidationError as error:
         return _render_interface(request, interface_id, errors=error.messages, form=request.POST)
     return redirect("web:interface", interface_id=interface_id)
-
-
-@require_POST
-def interface_remove(request, interface_id):
-    require_editor(request.user)
-    device_id = get_interface(request.user, interface_id).device_id
-    delete_interface(request.user, interface_id)
-    return redirect("web:device", device_id=device_id)
 
 
 @require_POST
@@ -393,15 +352,6 @@ def rack(request, rack_id):
     return redirect("web:rack", rack_id=rack_id)
 
 
-@require_POST
-def rack_remove(request, rack_id):
-    try:
-        delete_rack(request.user, rack_id)
-    except ValidationError as error:
-        return _render_rack(request, rack_id, errors=error.messages)
-    return redirect("web:racks")
-
-
 def _rack_height(request) -> int:
     try:
         return forms.IntegerField(min_value=1, max_value=100).clean(
@@ -489,15 +439,6 @@ def vlan(request, vlan_id):
     return redirect("web:vlan", vlan_id=vlan_id)
 
 
-@require_POST
-def vlan_remove(request, vlan_id):
-    try:
-        delete_vlan(request.user, vlan_id)
-    except ValidationError as error:
-        return _render_vlan(request, vlan_id, errors=error.messages)
-    return redirect("web:vlans")
-
-
 def _vlan_number(request) -> int:
     try:
         return forms.IntegerField(min_value=1, max_value=4094).clean(
@@ -571,15 +512,6 @@ def subnet(request, subnet_id):
 
 
 @require_POST
-def subnet_remove(request, subnet_id):
-    try:
-        delete_subnet(request.user, subnet_id)
-    except ValidationError as error:
-        return _render_subnet(request, subnet_id, errors=error.messages)
-    return redirect("web:subnets")
-
-
-@require_POST
 def subnet_ip_addresses(request, subnet_id):
     require_editor(request.user)
     address = request.POST.get("address", "")
@@ -625,14 +557,6 @@ def dhcp_range(request, range_id):
     except ValidationError as error:
         return _render_dhcp_range(request, range_id, errors=error.messages, form=request.POST)
     return redirect("web:dhcp-range", range_id=range_id)
-
-
-@require_POST
-def dhcp_range_remove(request, range_id):
-    require_editor(request.user)
-    subnet_id = get_dhcp_range(request.user, range_id).subnet_id
-    delete_dhcp_range(request.user, range_id)
-    return redirect("web:subnet", subnet_id=subnet_id)
 
 
 def _render_dhcp_range(request, range_id, errors=(), form=None):
@@ -681,12 +605,6 @@ def ip_address(request, address_id):
     except ValidationError as error:
         return _render_ip_address(request, address_id, errors=error.messages, form=request.POST)
     return redirect("web:ip-address", address_id=address_id)
-
-
-@require_POST
-def ip_address_remove(request, address_id):
-    delete_ip_address(request.user, address_id)
-    return redirect("web:ip-addresses")
 
 
 @require_POST
@@ -780,12 +698,6 @@ def cable(request, cable_id):
     except ValidationError as error:
         return _render_cable(request, cable_id, errors=error.messages, label=label)
     return redirect("web:cable", cable_id=cable_id)
-
-
-@require_POST
-def cable_remove(request, cable_id):
-    delete_cable(request.user, cable_id)
-    return redirect("web:cables")
 
 
 def _render_cable(request, cable_id, errors=(), label=None):
@@ -976,12 +888,6 @@ def device_type(request, device_type_id):
     return redirect("web:device-type", device_type_id=device_type_id)
 
 
-@require_POST
-def device_type_remove(request, device_type_id):
-    delete_device_type(request.user, device_type_id)
-    return redirect("web:device-types")
-
-
 def _device_type_values(request) -> dict:
     try:
         rack_height = forms.IntegerField(min_value=0, max_value=32767).clean(
@@ -1098,3 +1004,69 @@ def _render_users(request, errors=(), username="", new_role=Role.VIEWER):
         "new_role": new_role,
     }
     return render(request, "netatlas/users.html", context, status=400 if errors else 200)
+
+
+@require_http_methods(["GET", "POST"])
+def delete_confirmation(request, kind, item_id):
+    """Show everything a delete affects, and delete only what the person saw."""
+    require_editor(request.user)
+    if request.method == "GET":
+        return _render_delete(request, kind, item_id)
+
+    preview = preview_delete(request.user, kind, item_id)
+    if preview.blocked:
+        return _render_delete(request, kind, item_id, status=400)
+    target = _after_delete(request, kind, item_id)
+    try:
+        confirm_delete(request.user, kind, item_id, request.POST.get("fingerprint", ""))
+    except ValidationError as error:
+        return _render_delete(request, kind, item_id, errors=error.messages, status=400)
+    except StaleDelete:
+        message = _("Check what this delete affects, then confirm again.")
+        return _render_delete(request, kind, item_id, errors=[message], status=409)
+    return redirect(target)
+
+
+def _after_delete(request, kind, item_id) -> str:
+    """Where to go once the item is gone."""
+    if kind == "interface":
+        device_id = get_interface(request.user, item_id).device_id
+        return reverse("web:device", args=[device_id])
+    if kind == "dhcp-range":
+        subnet_id = get_dhcp_range(request.user, item_id).subnet_id
+        return reverse("web:subnet", args=[subnet_id])
+    lists = {"customer": "sites", "device-type": "device-types", "ip-address": "ip-addresses"}
+    return reverse(f"web:{lists.get(kind, f'{kind}s')}")
+
+
+def _impact_rows(impacts) -> list[dict]:
+    names = {
+        "customer": _("Customer"),
+        "site": _("Site"),
+        "device": _("Device"),
+        "interface": _("Interface"),
+        "rack": _("Rack"),
+        "vlan": _("VLAN"),
+        "subnet": _("Subnet"),
+        "dhcp-range": _("DHCP Range"),
+        "ip-address": _("IP Address"),
+        "cable": _("Cable"),
+        "device-type": _("Device Type"),
+    }
+    return [
+        {"kind": names[impact.kind], "label": impact.label, "effect": impact.effect}
+        for impact in impacts
+    ]
+
+
+def _render_delete(request, kind, item_id, errors=(), status=200):
+    preview = preview_delete(request.user, kind, item_id)
+    context = {
+        "preview": preview,
+        "deleted": _impact_rows(preview.deleted),
+        "changed": _impact_rows(preview.changed),
+        "moved": _impact_rows(preview.moved),
+        "item_url": reverse(f"web:{kind}", args=[item_id]),
+        "errors": [*errors, *preview.blocked],
+    }
+    return render(request, "netatlas/delete_confirmation.html", context, status=status)

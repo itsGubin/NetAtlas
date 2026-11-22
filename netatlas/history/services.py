@@ -5,6 +5,8 @@ Each runs in one transaction, so a change and its History are kept or lost toget
 """
 
 import json
+from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
@@ -18,6 +20,8 @@ from netatlas.accounts.services import require_editor, require_role
 from netatlas.history.models import Change, FieldChange, TrackedModel, allow_tracked_writes
 
 SYSTEM_ACTOR = "system"
+
+_captured_changes = ContextVar("netatlas_captured_changes", default=None)
 
 
 @dataclass(frozen=True)
@@ -37,6 +41,36 @@ class HistoryEntry:
     actor: str
     at: datetime
     changes: list[FieldChangeSummary]
+
+
+@dataclass(frozen=True)
+class RecordedChange:
+    """A change as it was recorded, still readable after a rehearsal is rolled back."""
+
+    kind: str
+    item_id: int
+    label: str
+    action: str
+    fields: list[FieldChangeSummary]
+
+
+@contextmanager
+def capture_changes():
+    """Collect every change recorded inside this block."""
+    captured = []
+    token = _captured_changes.set(captured)
+    try:
+        yield captured
+    finally:
+        _captured_changes.reset(token)
+
+
+@contextmanager
+def rehearse():
+    """Run real writes, collect what they would record, then undo all of it."""
+    with capture_changes() as captured, transaction.atomic():
+        yield captured
+        transaction.set_rollback(True)
 
 
 def create_item(actor, model, **values):
@@ -183,6 +217,20 @@ def _record(actor, item, action, changes) -> None:
         FieldChange(change=change, field=field, old=old, new=new)
         for field, (old, new) in changes.items()
     )
+    captured = _captured_changes.get()
+    if captured is not None:
+        captured.append(
+            RecordedChange(
+                kind=change.item_kind,
+                item_id=change.item_id,
+                label=change.item_label,
+                action=change.action,
+                fields=[
+                    FieldChangeSummary(field=field, old=old, new=new)
+                    for field, (old, new) in changes.items()
+                ],
+            )
+        )
 
 
 def _fields(model) -> list:

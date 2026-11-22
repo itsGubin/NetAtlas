@@ -13,6 +13,11 @@ urlpatterns = [
     path("tokens/", views.TokenListView.as_view(), name="token-list"),
     path("tokens/<int:token_id>/", views.TokenDetailView.as_view(), name="token-detail"),
     path("history/<slug:kind>/<int:item_id>/", views.HistoryView.as_view(), name="history"),
+    path(
+        "delete-preview/<slug:kind>/<int:item_id>/",
+        views.DeletePreviewView.as_view(),
+        name="delete-preview",
+    ),
     path("customers/", views.CustomerListView.as_view(), name="customer-list"),
     path(
         "customers/<int:customer_id>/", views.CustomerDetailView.as_view(), name="customer-detail"

@@ -314,6 +314,22 @@ def delete_subnet(actor, subnet_id: int) -> None:
         _check_site_plan(site_id)
 
 
+def subnet_delete_moves(subnet_id: int) -> list[tuple[str, str, str | None]]:
+    """What moves up if this Subnet is deleted, as (kind, label, new parent CIDR or None)."""
+    subnet = _find(subnet_id)
+    siblings = Subnet.objects.select_related("site", "vlan").filter(site_id=subnet.site_id)
+    tree = _tree(siblings)
+    target = next(entry.parent_cidr for entry in tree if entry.id == subnet.pk)
+    moves = [("subnet", entry.cidr, target) for entry in tree if entry.parent_id == subnet.pk]
+
+    entries = _site_entries([subnet.site_id])[subnet.site_id]
+    texts = IpAddress.objects.filter(site_id=subnet.site_id).values_list("address", flat=True)
+    located = _locate(entries, [ip_address(text) for text in texts])
+    own = [a for a, entry in located.items() if entry and entry[0].pk == subnet.pk]
+    moves += [("ip-address", str(a), target) for a in sorted(own, key=_address_order)]
+    return moves
+
+
 def subnet_usage(actor, subnet_id: int) -> SubnetUsage:
     """How a Subnet's own space is used, not counting inside nested Subnets."""
     require_role(actor)

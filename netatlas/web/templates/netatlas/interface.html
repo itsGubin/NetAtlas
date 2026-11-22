@@ -99,10 +99,7 @@
   {% include "netatlas/_interface_fields.html" %}
   <button type="submit">{% translate "Save" %}</button>
 </form>
-<form method="post" action="{% url 'web:interface-delete' interface.id %}">
-  {% csrf_token %}
-  <button type="submit">{% translate "Delete Interface" %}</button>
-</form>
+<p><a href="{% url 'web:interface-delete' interface.id %}">{% translate "Delete Interface" %}</a></p>
 {% endif %}
 
 <h2>{% translate "History" %}</h2>

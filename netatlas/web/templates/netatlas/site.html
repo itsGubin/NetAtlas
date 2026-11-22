@@ -12,10 +12,7 @@
   {% include "netatlas/_site_fields.html" %}
   <button type="submit">{% translate "Save" %}</button>
 </form>
-<form method="post" action="{% url 'web:site-delete' site.id %}">
-  {% csrf_token %}
-  <button type="submit">{% translate "Delete Site" %}</button>
-</form>
+<p><a href="{% url 'web:site-delete' site.id %}">{% translate "Delete Site" %}</a></p>
 {% endif %}
 
 <h2>{% translate "History" %}</h2>

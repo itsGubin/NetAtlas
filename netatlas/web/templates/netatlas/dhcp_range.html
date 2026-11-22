@@ -18,10 +18,7 @@
   <p><label>{% translate "Description" %} <input name="description" value="{{ form.description|default:'' }}" maxlength="200"></label></p>
   <button type="submit">{% translate "Save" %}</button>
 </form>
-<form method="post" action="{% url 'web:dhcp-range-delete' dhcp_range.id %}">
-  {% csrf_token %}
-  <button type="submit">{% translate "Delete DHCP Range" %}</button>
-</form>
+<p><a href="{% url 'web:dhcp-range-delete' dhcp_range.id %}">{% translate "Delete DHCP Range" %}</a></p>
 {% endif %}
 
 <h2>{% translate "History" %}</h2>

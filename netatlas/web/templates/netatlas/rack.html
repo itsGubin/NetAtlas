@@ -29,10 +29,7 @@
   <p><label>{% translate "Height (U)" %} <input name="height" inputmode="numeric" value="{{ form.height }}" required></label></p>
   <button type="submit">{% translate "Save" %}</button>
 </form>
-<form method="post" action="{% url 'web:rack-delete' rack.id %}">
-  {% csrf_token %}
-  <button type="submit">{% translate "Delete Rack" %}</button>
-</form>
+<p><a href="{% url 'web:rack-delete' rack.id %}">{% translate "Delete Rack" %}</a></p>
 {% endif %}
 
 <h2>{% translate "History" %}</h2>

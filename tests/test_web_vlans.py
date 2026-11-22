@@ -16,6 +16,7 @@ from netatlas.devices.services import (
     set_interface_vlans,
 )
 from netatlas.places.services import create_site
+from tests.helpers import confirm_delete
 
 WRITERS = [Role.ADMIN, Role.EDITOR]
 
@@ -51,7 +52,7 @@ def test_writer_creates_edits_and_deletes_a_vlan(client_with_role, role):
     edited = get_vlan(root(), vlan.id)
     assert (edited.number, edited.name) == (20, "Staff")
 
-    assert client.post(f"/vlans/{vlan.id}/delete/").status_code == 302
+    assert confirm_delete(client, f"/vlans/{vlan.id}/delete/").status_code == 302
     assert list_vlans(root()) == []
 
 

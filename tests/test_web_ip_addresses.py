@@ -14,6 +14,7 @@ from netatlas.addressing.services import (
 )
 from netatlas.devices.services import create_device, create_interface
 from netatlas.places.services import create_site
+from tests.helpers import confirm_delete
 
 WRITERS = [Role.ADMIN, Role.EDITOR]
 
@@ -56,7 +57,7 @@ def test_writer_creates_edits_and_deletes_an_address(client_with_role, role):
     edited = get_ip_address(root(), address.id)
     assert (edited.address, edited.description) == ("192.168.1.11", "Scanner")
 
-    assert client.post(f"/ip-addresses/{address.id}/delete/").status_code == 302
+    assert confirm_delete(client, f"/ip-addresses/{address.id}/delete/").status_code == 302
     assert list_ip_addresses(root()) == []
 
 
@@ -209,7 +210,7 @@ def test_writer_creates_edits_and_deletes_a_range(client_with_role):
     )
     assert get_dhcp_range(root(), dhcp.id).end == "192.168.1.150"
 
-    response = client.post(f"/dhcp-ranges/{dhcp.id}/delete/")
+    response = confirm_delete(client, f"/dhcp-ranges/{dhcp.id}/delete/")
     assert response.status_code == 302
     assert response["Location"] == f"/subnets/{subnet.id}/"
     assert list_dhcp_ranges(root()) == []

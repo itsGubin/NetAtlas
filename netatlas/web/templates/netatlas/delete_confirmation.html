@@ -1,0 +1,31 @@
+{% extends "netatlas/base.html" %}{% load i18n %}
+{% block title %}{% translate "Delete" %} {{ preview.item_label }} · {{ block.super }}{% endblock %}
+{% block content %}
+<h1>{% blocktranslate with label=preview.item_label %}Delete {{ label }}?{% endblocktranslate %}</h1>
+{% include "netatlas/_errors.html" %}
+
+{% if deleted %}
+<h2>{% translate "Also deleted" %}</h2>
+{% include "netatlas/_delete_impacts.html" with impacts=deleted %}
+{% endif %}
+{% if changed %}
+<h2>{% translate "Changed" %}</h2>
+{% include "netatlas/_delete_impacts.html" with impacts=changed %}
+{% endif %}
+{% if moved %}
+<h2>{% translate "Moved up the Subnet tree" %}</h2>
+{% include "netatlas/_delete_impacts.html" with impacts=moved %}
+{% endif %}
+{% if not preview.blocked and not deleted and not changed and not moved %}
+<p>{% translate "Nothing else is affected." %}</p>
+{% endif %}
+
+{% if not preview.blocked %}
+<form method="post" action="{{ request.path }}">
+  {% csrf_token %}
+  <input type="hidden" name="fingerprint" value="{{ preview.fingerprint }}">
+  <button type="submit">{% translate "Delete" %}</button>
+</form>
+{% endif %}
+<p><a href="{{ item_url }}">{% translate "Cancel" %}</a></p>
+{% endblock %}

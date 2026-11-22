@@ -11,10 +11,7 @@
   <p><label>{% translate "Name" %} <input name="name" value="{{ name }}" required></label></p>
   <button type="submit">{% translate "Save" %}</button>
 </form>
-<form method="post" action="{% url 'web:customer-delete' customer.id %}">
-  {% csrf_token %}
-  <button type="submit">{% translate "Delete Customer" %}</button>
-</form>
+<p><a href="{% url 'web:customer-delete' customer.id %}">{% translate "Delete Customer" %}</a></p>
 {% endif %}
 
 <h2>{% translate "History" %}</h2>
