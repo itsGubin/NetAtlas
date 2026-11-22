@@ -26,4 +26,4 @@ VOLUME ["/data/media"]
 HEALTHCHECK --interval=10s --timeout=5s --start-period=20s --retries=3 \
     CMD ["./docker-healthcheck.sh"]
 ENTRYPOINT ["./docker-entrypoint.sh"]
-CMD ["gunicorn", "netatlas.config.wsgi", "--bind", "0.0.0.0:8000", "--workers", "3", "--timeout", "120"]
+CMD ["gunicorn", "netatlas.config.wsgi", "--bind", "0.0.0.0:8000", "--workers", "3", "--timeout", "120", "--no-control-socket"]
