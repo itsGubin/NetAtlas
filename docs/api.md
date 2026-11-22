@@ -164,9 +164,19 @@ Every error has the same shape. `fields` lists messages per field and is empty f
 - A Live Field is written `@{device:12.ip-addresses}` and always shows the current value. The form `@{any text}(device:12.ip-addresses)` is accepted and stored in the short form. `GET /api/pages/<id>/live-fields/` returns each one's current `values`, with `is_broken` true once its item is deleted. `GET /api/live-field-options/?q=core ip` finds fields to insert.
 - Pages accept Tags through `/api/items/page/<id>/tags/`, and `GET /api/pages/?tag=prod` filters by them.
 
+## Page Templates
+
+`/api/page-templates/` supports list, create, read, `PATCH` and delete. Every Role can read. Admins and Editors can write.
+
+- Customers, Sites, Racks, Devices, VLANs and Subnets each have one default template, which can be edited but not deleted. `POST` adds an override for one Device Type.
+- `body` is Markdown. A line `{{section:Notes}}` is a Free-text Section, and `@{this.ip-addresses}` is a Live Field of the Page's own item.
+- Editing a template updates every Page using it and keeps Free-text Section content. When a Page moves to another template, because an override is added or deleted, content the new template has no section for stays at the end of the Page.
+- Removing a section deletes its content from every Page using the template, recoverable only from History. `POST /api/page-templates/<id>/preview/` with the new `body` lists `name` and `page_count` for each section with content. `PATCH` returns `409` with code `confirmation_required` unless `confirmed_removals` holds exactly those counts, such as `{"Notes": 3}`.
+- An Item Page is written with `PATCH /api/pages/<id>/` and `sections`, such as `{"sections": {"Notes": "text"}}`. `body` is accepted only while its template is a single Free-text Section.
+
 ## Delete preview
 
-`GET /api/delete-preview/<kind>/<id>/` shows what deleting an item would do, without changing anything. It requires the Admin or Editor Role. `kind` is `customer`, `site`, `device`, `interface`, `rack`, `vlan`, `subnet`, `dhcp-range`, `ip-address`, `cable`, `device-type`, `tag` or `page`.
+`GET /api/delete-preview/<kind>/<id>/` shows what deleting an item would do, without changing anything. It requires the Admin or Editor Role. `kind` is `customer`, `site`, `device`, `interface`, `rack`, `vlan`, `subnet`, `dhcp-range`, `ip-address`, `cable`, `device-type`, `tag`, `page` or `page-template`.
 
 - `deleted`, `changed` and `moved` list every affected item with its `effect`. `moved` holds what moves up the Subnet tree.
 - `broken_live_fields` lists the Live Fields on remaining Pages that will show as broken.

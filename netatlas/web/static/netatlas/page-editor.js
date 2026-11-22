@@ -1,8 +1,11 @@
 // The `@` Mention and `@{` Live Field picker. Without JavaScript the textarea still works.
 (() => {
-  const textarea = document.querySelector("textarea[data-mention-url]");
+  // An Item Page has one textarea per Free-text Section, sharing one list of options.
+  const textareas = [...document.querySelectorAll("textarea[data-mention-url]")];
   const list = document.getElementById("mention-options");
-  if (!textarea || !list) return;
+  if (!textareas.length || !list) return;
+
+  let textarea = textareas[0];
 
   let active = -1;
   let timer = null;
@@ -76,14 +79,14 @@
     if (hasOptions) highlight(0);
   };
 
-  textarea.addEventListener("input", () => {
+  const onInput = () => {
     clearTimeout(timer);
     const found = typed();
     if (!found) return close();
     timer = setTimeout(() => search(found), 150);
-  });
+  };
 
-  textarea.addEventListener("keydown", (event) => {
+  const onKeydown = (event) => {
     if (list.hidden) return;
     if (event.key === "ArrowDown" || event.key === "ArrowUp") {
       event.preventDefault();
@@ -95,7 +98,7 @@
       event.preventDefault();
       close();
     }
-  });
+  };
 
   // Choose on mousedown, before the textarea loses focus and its caret.
   list.addEventListener("mousedown", (event) => {
@@ -106,5 +109,17 @@
     }
   });
 
-  textarea.addEventListener("blur", close);
+  const onBlur = () => {
+    clearTimeout(timer);
+    close();
+  };
+
+  textareas.forEach((field) => {
+    field.addEventListener("focus", () => {
+      textarea = field;
+    });
+    field.addEventListener("input", onInput);
+    field.addEventListener("keydown", onKeydown);
+    field.addEventListener("blur", onBlur);
+  });
 })();

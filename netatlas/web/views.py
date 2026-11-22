@@ -1,3 +1,5 @@
+import json
+
 from django import forms
 from django.contrib import messages
 from django.core.exceptions import ValidationError
@@ -81,6 +83,12 @@ from netatlas.devices.services import (
 )
 from netatlas.history.services import item_history
 from netatlas.pages.services import (
+    UnconfirmedSectionRemoval,
+    create_page_template,
+    editor_sections,
+    get_page_template,
+    list_page_templates,
+    update_page_template,
     create_page,
     editor_body,
     get_page,
@@ -1076,6 +1084,7 @@ def _kind_names() -> dict[str, str]:
         "device-type": _("Device Type"),
         "tag": _("Tag"),
         "page": _("Page"),
+        "page-template": _("Page Template"),
     }
 
 
@@ -1143,10 +1152,17 @@ def page_edit(request, page_id):
     item = get_page(request.user, page_id)
     title = request.POST.get("title", "") if item.item_id is None else None
     body = request.POST.get("body", "")
+    sections = None
+    if item.item_id is not None and "section_name" in request.POST:
+        names = request.POST.getlist("section_name")
+        sections = dict(zip(names, request.POST.getlist("section_content"), strict=False))
+        body = None
     try:
-        update_page(request.user, page_id, title=title, body=body)
+        update_page(request.user, page_id, title=title, body=body, sections=sections)
     except ValidationError as error:
-        return _render_page_edit(request, page_id, errors=error.messages, title=title, body=body)
+        return _render_page_edit(
+            request, page_id, errors=error.messages, title=title, body=body, sections=sections
+        )
     return redirect("web:page", page_id=page_id)
 
 
@@ -1178,16 +1194,107 @@ def _render_pages(request, errors=(), title="", body=""):
     return render(request, "netatlas/pages.html", context, status=400 if errors else 200)
 
 
-def _render_page_edit(request, page_id, errors=(), title=None, body=None):
+def _render_page_edit(request, page_id, errors=(), title=None, body=None, sections=None):
     item = get_page(request.user, page_id)
+    shown_sections = [
+        {
+            "name": section.name,
+            "content": sections.get(section.name, section.content) if sections else section.content,
+            "in_template": section.in_template,
+        }
+        for section in editor_sections(request.user, page_id)
+    ]
     context = {
         "page": item,
+        "sections": shown_sections,
         "show_title": item.item_id is None,
         "title": item.title if title is None else title,
         "body": editor_body(request.user, page_id) if body is None else body,
         "errors": errors,
     }
     return render(request, "netatlas/page_edit.html", context, status=400 if errors else 200)
+
+
+@require_http_methods(["GET", "POST"])
+def page_templates(request):
+    if request.method == "GET":
+        return _render_page_templates(request)
+
+    require_editor(request.user)
+    name = request.POST.get("name", "")
+    body = request.POST.get("body", "")
+    device_type = request.POST.get("device_type_id", "")
+    try:
+        if not device_type.isascii() or not device_type.isdecimal():
+            raise ValidationError(_("Choose an existing Device Type."))
+        created = create_page_template(request.user, name, int(device_type), body)
+    except (ValidationError, OverflowError) as error:
+        messages = (
+            error.messages
+            if isinstance(error, ValidationError)
+            else [_("Choose an existing Device Type.")]
+        )
+        return _render_page_templates(
+            request, errors=messages, name=name, body=body, device_type=device_type
+        )
+    return redirect("web:page-template", template_id=created.id)
+
+
+@require_http_methods(["GET", "POST"])
+def page_template(request, template_id):
+    if request.method == "GET":
+        return _render_page_template(request, template_id)
+
+    require_editor(request.user)
+    name = request.POST.get("name", "")
+    body = request.POST.get("body", "")
+    try:
+        confirmed = json.loads(request.POST.get("confirmed_removals") or "{}")
+    except ValueError:
+        confirmed = {}
+    try:
+        update_page_template(
+            request.user, template_id, name=name, body=body, confirmed_removals=confirmed
+        )
+    except UnconfirmedSectionRemoval as needed:
+        return _render_page_template(
+            request, template_id, name=name, body=body, removed=needed.removed, status=409
+        )
+    except ValidationError as error:
+        return _render_page_template(
+            request, template_id, errors=error.messages, name=name, body=body, status=400
+        )
+    return redirect("web:page-template", template_id=template_id)
+
+
+def _render_page_templates(request, errors=(), name="", body=None, device_type=""):
+    templates = list_page_templates(request.user)
+    taken = {template.device_type_id for template in templates}
+    context = {
+        "templates": templates,
+        "device_types": [d for d in list_device_types(request.user) if d.id not in taken],
+        "selected_device_type": int(device_type) if device_type.isdecimal() else None,
+        "errors": errors,
+        "name": name,
+        "body": "{{section:Notes}}" if body is None else body,
+    }
+    return render(request, "netatlas/page_templates.html", context, status=400 if errors else 200)
+
+
+def _render_page_template(
+    request, template_id, errors=(), name=None, body=None, removed=(), status=200
+):
+    template = get_page_template(request.user, template_id)
+    context = {
+        "template": template,
+        "name": template.name if name is None else name,
+        "body": template.body if body is None else body,
+        "removed": removed,
+        "confirmed_removals": json.dumps({entry.name: entry.page_count for entry in removed}),
+        "entries": item_history(request.user, "page-template", template_id),
+        "errors": errors,
+    }
+    return render(request, "netatlas/page_template.html", context, status=status)
 
 
 @require_http_methods(["GET", "POST"])

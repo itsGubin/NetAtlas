@@ -32,8 +32,8 @@ from netatlas.devices.services import (
     delete_rack,
 )
 from netatlas.history.services import capture_changes, rehearse
-from netatlas.pages.models import Page
-from netatlas.pages.services import broken_live_fields, delete_page
+from netatlas.pages.models import Page, PageTemplate
+from netatlas.pages.services import broken_live_fields, delete_page, delete_page_template
 from netatlas.places.models import Customer, Site
 from netatlas.places.services import delete_customer, delete_site
 from netatlas.tagging.models import Tag
@@ -53,6 +53,7 @@ _DELETERS = {
     "device-type": (DeviceType, delete_device_type),
     "tag": (Tag, delete_tag),
     "page": (Page, delete_page),
+    "page-template": (PageTemplate, delete_page_template),
 }
 DELETABLE_KINDS = tuple(_DELETERS)
 

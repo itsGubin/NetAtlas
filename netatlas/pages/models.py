@@ -3,6 +3,7 @@ from django.db.models import Q
 
 from netatlas.addressing.models import DhcpRange, IpAddress, Subnet, Vlan
 from netatlas.devices.models import Cable, Device, DeviceType, Interface, Rack
+from netatlas.history.models import TrackedModel
 from netatlas.places.models import Customer, Site
 from netatlas.tagging.models import TaggableModel
 
@@ -37,7 +38,9 @@ class Page(TaggableModel):
 
     # Only a Standalone Page has its own title. An Item Page is named after its item.
     title = models.CharField(max_length=200, blank=True)
+    # On an Item Page, `body` is built from its Page Template and `sections`.
     body = models.TextField(blank=True)
+    sections = models.JSONField(default=dict, blank=True)
     item_kind = models.CharField(max_length=20, blank=True)
     item_id = models.BigIntegerField(null=True, blank=True)
 
@@ -60,6 +63,39 @@ class Page(TaggableModel):
             return self.title
         item = MENTIONABLE_MODELS[self.item_kind].objects.filter(pk=self.item_id).first()
         return str(item) if item else f"{self.item_kind} {self.item_id}"
+
+
+class PageTemplate(TrackedModel):
+    """The skeleton of Item Pages: a kind's default, or a Device Type's override."""
+
+    history_kind = "page-template"
+
+    name = models.CharField(max_length=100)
+    item_kind = models.CharField(max_length=20)
+    device_type = models.OneToOneField(
+        DeviceType,
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="page_template",
+    )
+    body = models.TextField(blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["item_kind"],
+                condition=Q(device_type__isnull=True),
+                name="one_default_page_template_per_kind",
+            ),
+            models.CheckConstraint(
+                condition=Q(device_type__isnull=True) | Q(item_kind="device"),
+                name="page_template_override_is_for_devices",
+            ),
+        ]
+
+    def __str__(self):
+        return self.name
 
 
 class Mention(models.Model):
