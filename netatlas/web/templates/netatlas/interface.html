@@ -7,9 +7,53 @@
   <dt>{% translate "Device" %}</dt><dd><a href="{% url 'web:device' device.id %}">{{ device.name }}</a></dd>
   <dt>{% translate "Kind" %}</dt><dd>{{ interface.kind }}</dd>
   {% if interface.lag_id %}<dt>{% translate "LAG" %}</dt><dd><a href="{% url 'web:interface' interface.lag_id %}">{{ interface.lag_name }}</a></dd>{% endif %}
+  {% if interface.cable_id %}
+  <dt>{% translate "Connected to" %}</dt>
+  <dd><a href="{% url 'web:interface' interface.peer_interface_id %}">{{ interface.peer_device_name }} {{ interface.peer_interface_name }}</a> (<a href="{% url 'web:cable' interface.cable_id %}">{% translate "Cable" %}</a>)</dd>
+  {% endif %}
+  {% if interface.paired_interface_id %}
+  <dt>{% translate "Paired with" %}</dt>
+  <dd><a href="{% url 'web:interface' interface.paired_interface_id %}">{{ interface.paired_interface_name }}</a></dd>
+  {% endif %}
 </dl>
+{% if is_physical %}<p><a href="{% url 'web:interface-trace' interface.id %}">{% translate "Trace cable path" %}</a></p>{% endif %}
 
 {% if can_edit %}
+{% if cable_choices %}
+<h2>{% translate "Connect a Cable" %}</h2>
+<form method="post" action="{% url 'web:interface-cable' interface.id %}">
+  {% csrf_token %}
+  <p>
+    <label>{% translate "Other end" %}
+      <select name="peer_id" required>
+        {% for choice in cable_choices %}<option value="{{ choice.id }}">{{ choice.label }}</option>{% endfor %}
+      </select>
+    </label>
+  </p>
+  <p><label>{% translate "Label" %} <input name="label" maxlength="100"></label></p>
+  <button type="submit">{% translate "Connect" %}</button>
+</form>
+{% endif %}
+{% if pair_choices %}
+<h2>{% translate "Pair for pass-through" %}</h2>
+<form method="post" action="{% url 'web:interface-pair' interface.id %}">
+  {% csrf_token %}
+  <p>
+    <label>{% translate "Other side" %}
+      <select name="partner_id" required>
+        {% for choice in pair_choices %}<option value="{{ choice.id }}">{{ choice.label }}</option>{% endfor %}
+      </select>
+    </label>
+  </p>
+  <button type="submit">{% translate "Pair" %}</button>
+</form>
+{% endif %}
+{% if interface.paired_interface_id %}
+<form method="post" action="{% url 'web:interface-unpair' interface.id %}">
+  {% csrf_token %}
+  <button type="submit">{% translate "Remove pair" %}</button>
+</form>
+{% endif %}
 <h2>{% translate "Edit Interface" %}</h2>
 <form method="post" action="{% url 'web:interface' interface.id %}">
   {% csrf_token %}

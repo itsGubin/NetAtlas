@@ -1,0 +1,24 @@
+{% extends "netatlas/base.html" %}{% load i18n %}
+{% block title %}{% translate "Cables" %} · {{ block.super }}{% endblock %}
+{% block content %}
+<h1>{% translate "Cables" %}</h1>
+<table>
+  <thead>
+    <tr>
+      <th scope="col">{% translate "Cable" %}</th>
+      <th scope="col">{% translate "End A" %}</th>
+      <th scope="col">{% translate "End B" %}</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for item in cables %}
+    <tr>
+      <td><a href="{% url 'web:cable' item.id %}">{% if item.label %}{{ item.label }}{% else %}#{{ item.id }}{% endif %}</a></td>
+      <td><a href="{% url 'web:interface' item.interface_a_id %}">{{ item.device_a_name }} {{ item.interface_a_name }}</a></td>
+      <td><a href="{% url 'web:interface' item.interface_b_id %}">{{ item.device_b_name }} {{ item.interface_b_name }}</a></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+<p>{% translate "Connect a Cable from an Interface's page." %}</p>
+{% endblock %}

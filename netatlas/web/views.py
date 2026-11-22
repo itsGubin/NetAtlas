@@ -1,5 +1,6 @@
 from django import forms
 from django.core.exceptions import ValidationError
+from django.http import Http404
 from django.shortcuts import redirect, render
 from django.utils.cache import patch_cache_control
 from django.utils.translation import gettext as _
@@ -21,19 +22,29 @@ from netatlas.accounts.services import (
 )
 from netatlas.devices.services import (
     INTERFACE_KINDS,
+    cable_candidates,
+    create_cable,
     create_device,
     create_device_type,
     create_interface,
+    delete_cable,
     delete_device,
     delete_device_type,
     delete_interface,
     format_interface_lines,
+    get_cable,
     get_device,
     get_device_type,
     get_interface,
+    list_cables,
     list_device_types,
     list_devices,
+    pair_candidates,
+    pair_interfaces,
     parse_interface_lines,
+    trace_interface,
+    unpair_interface,
+    update_cable,
     update_device,
     update_device_type,
     update_interface,
@@ -257,6 +268,83 @@ def interface_remove(request, interface_id):
     return redirect("web:device", device_id=device_id)
 
 
+@require_POST
+def interface_cable(request, interface_id):
+    require_editor(request.user)
+    try:
+        peer_id = _required_id(request, "peer_id")
+        create_cable(request.user, interface_id, peer_id, request.POST.get("label", ""))
+    except ValidationError as error:
+        return _render_interface(request, interface_id, errors=error.messages)
+    return redirect("web:interface", interface_id=interface_id)
+
+
+@require_POST
+def interface_pair(request, interface_id):
+    require_editor(request.user)
+    try:
+        pair_interfaces(request.user, interface_id, _required_id(request, "partner_id"))
+    except ValidationError as error:
+        return _render_interface(request, interface_id, errors=error.messages)
+    return redirect("web:interface", interface_id=interface_id)
+
+
+@require_POST
+def interface_unpair(request, interface_id):
+    unpair_interface(request.user, interface_id)
+    return redirect("web:interface", interface_id=interface_id)
+
+
+def interface_trace(request, interface_id):
+    item = get_interface(request.user, interface_id)
+    if item.kind != "physical":
+        raise Http404
+    context = {"interface": item, "trace": trace_interface(request.user, interface_id)}
+    return render(request, "netatlas/trace.html", context)
+
+
+def cables(request):
+    return render(request, "netatlas/cables.html", {"cables": list_cables(request.user)})
+
+
+@require_http_methods(["GET", "POST"])
+def cable(request, cable_id):
+    if request.method == "GET":
+        return _render_cable(request, cable_id)
+
+    require_editor(request.user)
+    label = request.POST.get("label", "")
+    try:
+        update_cable(request.user, cable_id, label=label)
+    except ValidationError as error:
+        return _render_cable(request, cable_id, errors=error.messages, label=label)
+    return redirect("web:cable", cable_id=cable_id)
+
+
+@require_POST
+def cable_remove(request, cable_id):
+    delete_cable(request.user, cable_id)
+    return redirect("web:cables")
+
+
+def _render_cable(request, cable_id, errors=(), label=None):
+    item = get_cable(request.user, cable_id)
+    context = {
+        "cable": item,
+        "entries": item_history(request.user, "cable", item.id),
+        "errors": errors,
+        "label": item.label if label is None else label,
+    }
+    return render(request, "netatlas/cable.html", context, status=400 if errors else 200)
+
+
+def _required_id(request, field: str) -> int:
+    value = _posted_id(request, field)
+    if value is None:
+        raise ValidationError({field: [_("Choose an Interface.")]})
+    return value
+
+
 def _interface_values(request) -> dict:
     values = {"name": request.POST.get("name", ""), "kind": request.POST.get("kind", "")}
     # A Device without LAGs shows no LAG field, so its absence must change nothing.
@@ -272,6 +360,7 @@ def _interface_kinds(device_kind: str) -> tuple[str, ...]:
 def _render_interface(request, interface_id, errors=(), form=None):
     item = get_interface(request.user, interface_id)
     owner = get_device(request.user, item.device_id)
+    is_physical = item.kind == "physical"
     context = {
         "interface": item,
         "device": owner,
@@ -279,6 +368,13 @@ def _render_interface(request, interface_id, errors=(), form=None):
         "lags": [i for i in owner.interfaces if i.kind == "lag" and i.id != item.id],
         "selected_lag": _submitted_id(request, "lag_id", item.lag_id),
         "interface_form": form or {"name": item.name, "kind": item.kind},
+        "is_physical": is_physical,
+        "cable_choices": cable_candidates(request.user, item.id)
+        if is_physical and not item.cable_id
+        else [],
+        "pair_choices": pair_candidates(request.user, item.id)
+        if is_physical and not item.paired_interface_id
+        else [],
         "entries": item_history(request.user, "interface", item.id),
         "errors": errors,
     }
