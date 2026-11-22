@@ -56,6 +56,11 @@ from netatlas.api.serializers import (
     LiveFieldValueSerializer,
     MentionOptionSerializer,
     PageChangeSerializer,
+    PageTemplateChangeSerializer,
+    PageTemplateCreateSerializer,
+    PageTemplatePreviewSerializer,
+    PageTemplateSerializer,
+    RemovedSectionSerializer,
     PageCreateSerializer,
     PageSerializer,
     PageSummarySerializer,
@@ -162,6 +167,13 @@ from netatlas.devices.services import (
 )
 from netatlas.history.services import item_history
 from netatlas.pages.services import (
+    UnconfirmedSectionRemoval,
+    create_page_template,
+    delete_page_template,
+    get_page_template,
+    list_page_templates,
+    preview_template_change,
+    update_page_template,
     create_page,
     delete_page,
     get_item_page,
@@ -1067,6 +1079,80 @@ class PageDetailView(APIView):
     def delete(self, request, page_id):
         delete_page(request.user, page_id)
         return Response(status=http_status.HTTP_204_NO_CONTENT)
+
+
+class PageTemplateListView(APIView):
+    @extend_schema(
+        operation_id="page_templates_list",
+        parameters=PAGINATION,
+        responses={200: page_of(PageTemplateSerializer), **errors(400, 401, 403)},
+    )
+    def get(self, request):
+        templates = list_page_templates(request.user)
+        allowed_filters(request)
+        return paginated(request, self, templates, asdict)
+
+    @extend_schema(
+        description="Adds a Device Type's override. Each kind's default already exists.",
+        request=PageTemplateCreateSerializer,
+        responses={201: PageTemplateSerializer, **errors(400, 401, 403)},
+    )
+    def post(self, request):
+        require_editor(request.user)
+        body = PageTemplateCreateSerializer(data=request.data)
+        body.is_valid(raise_exception=True)
+        template = create_page_template(request.user, **body.validated_data)
+        return Response(asdict(template), status=http_status.HTTP_201_CREATED)
+
+
+class PageTemplateDetailView(APIView):
+    @extend_schema(responses={200: PageTemplateSerializer, **errors(401, 403, 404)})
+    def get(self, request, template_id):
+        return Response(asdict(get_page_template(request.user, template_id)))
+
+    @extend_schema(
+        description=(
+            "Updates every Page using the template. Removing a Free-text Section that has "
+            "content returns `409` until `confirmed_removals` matches the affected Page counts."
+        ),
+        request=PageTemplateChangeSerializer,
+        responses={200: PageTemplateSerializer, **errors(400, 401, 403, 404, 409)},
+    )
+    def patch(self, request, template_id):
+        require_editor(request.user)
+        body = PageTemplateChangeSerializer(data=request.data)
+        body.is_valid(raise_exception=True)
+        try:
+            template = update_page_template(request.user, template_id, **body.validated_data)
+        except UnconfirmedSectionRemoval as needed:
+            counts = {entry.name: [str(entry.page_count)] for entry in needed.removed}
+            message = _("Removing these Free-text Sections deletes Page content.")
+            envelope = {"code": "confirmation_required", "message": message, "fields": counts}
+            return Response({"error": envelope}, status=http_status.HTTP_409_CONFLICT)
+        return Response(asdict(template))
+
+    @extend_schema(
+        description="Deletes a Device Type's override. A default cannot be deleted.",
+        responses={204: None, **errors(400, 401, 403, 404)},
+    )
+    def delete(self, request, template_id):
+        delete_page_template(request.user, template_id)
+        return Response(status=http_status.HTTP_204_NO_CONTENT)
+
+
+class PageTemplatePreviewView(APIView):
+    @extend_schema(
+        operation_id="page_template_preview",
+        description="The Free-text Sections this text would remove. Nothing is changed.",
+        request=PageTemplatePreviewSerializer,
+        responses={200: RemovedSectionSerializer(many=True), **errors(400, 401, 403, 404)},
+    )
+    def post(self, request, template_id):
+        require_editor(request.user)
+        body = PageTemplatePreviewSerializer(data=request.data)
+        body.is_valid(raise_exception=True)
+        removed = preview_template_change(request.user, template_id, body.validated_data["body"])
+        return Response([asdict(entry) for entry in removed])
 
 
 class ItemPageView(APIView):

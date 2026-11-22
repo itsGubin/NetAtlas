@@ -5,8 +5,22 @@
 {% include "netatlas/_errors.html" %}
 <form method="post" action="{% url 'web:page-edit' page.id %}">
   {% csrf_token %}
+  {% if sections %}
+  {% for section in sections %}
+  <input type="hidden" name="section_name" value="{{ section.name }}">
+  <p>
+    <label for="page-section-{{ forloop.counter }}">{{ section.name }}{% if not section.in_template %} ({% translate "no longer in the template" %}){% endif %}</label><br>
+    <textarea id="page-section-{{ forloop.counter }}" name="section_content" rows="10" cols="80" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="mention-options" aria-describedby="page-body-help" data-mention-url="{% url 'web:mention-options' %}" data-live-field-url="{% url 'web:live-field-options' %}">{{ section.content }}</textarea>
+  </p>
+  {% endfor %}
+  <ul id="mention-options" role="listbox" aria-label="{% translate 'Items and fields to insert' %}" hidden></ul>
+  <p id="page-body-help"><small>{% translate "Type @ to mention an item, or @{ to insert a Live Field." %}</small></p>
+  {% elif page.item_id %}
+  <p>{% translate "This Page's template has no Free-text Sections." %} <a href="{% url 'web:page-templates' %}">{% translate "Page Templates" %}</a></p>
+  {% else %}
   {% include "netatlas/_page_fields.html" with show_title=show_title %}
-  <button type="submit">{% translate "Save" %}</button>
+  {% endif %}
+  {% if sections or not page.item_id %}<button type="submit">{% translate "Save" %}</button>{% endif %}
 </form>
 <p><a href="{% url 'web:page' page.id %}">{% translate "Cancel" %}</a></p>
 <script src="{% static 'netatlas/page-editor.js' %}" defer></script>

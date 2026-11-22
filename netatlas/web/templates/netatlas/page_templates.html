@@ -1,0 +1,39 @@
+{% extends "netatlas/base.html" %}{% load i18n %}
+{% block title %}{% translate "Page Templates" %} · {{ block.super }}{% endblock %}
+{% block content %}
+<h1>{% translate "Page Templates" %}</h1>
+{% include "netatlas/_errors.html" %}
+<table>
+  <thead>
+    <tr><th scope="col">{% translate "Page Template" %}</th><th scope="col">{% translate "Used for" %}</th><th scope="col">{% translate "Pages" %}</th></tr>
+  </thead>
+  <tbody>
+    {% for template in templates %}
+    <tr>
+      <td><a href="{% url 'web:page-template' template.id %}">{{ template.name }}</a></td>
+      <td>{% if template.device_type_name %}{{ template.device_type_name }}{% else %}{% translate "Default" %}: {{ template.item_kind }}{% endif %}</td>
+      <td>{{ template.page_count }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% if can_edit %}
+<h2>{% translate "Override for a Device Type" %}</h2>
+{% if device_types %}
+<form method="post" action="{% url 'web:page-templates' %}">
+  {% csrf_token %}
+  <p><label>{% translate "Name" %} <input name="name" value="{{ name }}" maxlength="100" required></label></p>
+  <p><label>{% translate "Device Type" %}
+    <select name="device_type_id" required>
+      {% for device_type in device_types %}<option value="{{ device_type.id }}"{% if device_type.id == selected_device_type %} selected{% endif %}>{{ device_type.make }} {{ device_type.model_name }}</option>{% endfor %}
+    </select>
+  </label></p>
+  {% include "netatlas/_template_body.html" %}
+  <button type="submit">{% translate "Add Page Template" %}</button>
+</form>
+{% else %}
+<p>{% translate "Every Device Type already has a Page Template." %}</p>
+{% endif %}
+{% endif %}
+{% endblock %}

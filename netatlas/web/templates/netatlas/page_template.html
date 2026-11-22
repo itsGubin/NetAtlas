@@ -1,0 +1,32 @@
+{% extends "netatlas/base.html" %}{% load i18n %}
+{% block title %}{{ template.name }} · {{ block.super }}{% endblock %}
+{% block content %}
+<h1>{{ template.name }}</h1>
+{% include "netatlas/_errors.html" %}
+<p>{% if template.device_type_name %}{% translate "Override for" %} <a href="{% url 'web:device-type' template.device_type_id %}">{{ template.device_type_name }}</a>{% else %}{% translate "Default for" %} {{ template.item_kind }}{% endif %} · {% blocktranslate count pages=template.page_count %}{{ pages }} Page{% plural %}{{ pages }} Pages{% endblocktranslate %}</p>
+
+{% if can_edit %}
+{% if removed %}
+<div role="alert">
+  <h2>{% translate "This deletes Page content" %}</h2>
+  <ul>
+    {% for section in removed %}<li>{% blocktranslate with name=section.name count pages=section.page_count %}{{ name }}: content on {{ pages }} Page is deleted{% plural %}{{ name }}: content on {{ pages }} Pages is deleted{% endblocktranslate %}</li>{% endfor %}
+  </ul>
+  <p>{% translate "It can then only be recovered from History." %}</p>
+</div>
+{% endif %}
+<form method="post" action="{% url 'web:page-template' template.id %}">
+  {% csrf_token %}
+  <p><label>{% translate "Name" %} <input name="name" value="{{ name }}" maxlength="100" required></label></p>
+  {% include "netatlas/_template_body.html" %}
+  {% if removed %}<input type="hidden" name="confirmed_removals" value="{{ confirmed_removals }}">{% endif %}
+  <button type="submit">{% if removed %}{% translate "Delete content and save" %}{% else %}{% translate "Save" %}{% endif %}</button>
+</form>
+{% if template.device_type_id %}<p><a href="{% url 'web:page-template-delete' template.id %}">{% translate "Delete Page Template" %}</a></p>{% endif %}
+{% else %}
+<pre>{{ template.body }}</pre>
+{% endif %}
+
+<h2>{% translate "History" %}</h2>
+{% include "netatlas/_history.html" %}
+{% endblock %}

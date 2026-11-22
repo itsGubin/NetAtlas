@@ -1,0 +1,6 @@
+{% load i18n %}{# Expects `body`. #}
+<p>
+  <label for="template-body">{% translate "Template (Markdown)" %}</label><br>
+  <textarea id="template-body" name="body" rows="14" cols="80" aria-describedby="template-body-help">{{ body }}</textarea>
+</p>
+<p id="template-body-help"><small>{% blocktranslate with section="{{section:Name}}" live="@{this.name}" %}Put {{ section }} on its own line for a Free-text Section, and {{ live }} for a Live Field of the Page's item.{% endblocktranslate %}</small></p>

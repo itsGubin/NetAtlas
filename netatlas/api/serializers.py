@@ -567,6 +567,13 @@ class PageSerializer(PageSummarySerializer):
     body = serializers.CharField(
         allow_blank=True, help_text="Markdown. A Mention is written `@[device:12]`."
     )
+    sections = serializers.DictField(
+        child=serializers.CharField(allow_blank=True),
+        help_text="An Item Page's Free-text Sections by name. Empty on a Standalone Page.",
+    )
+    template_id = serializers.IntegerField(
+        allow_null=True, help_text="The Page Template in use. Null on a Standalone Page."
+    )
 
 
 class PageCreateSerializer(serializers.Serializer):
@@ -577,6 +584,48 @@ class PageCreateSerializer(serializers.Serializer):
 class PageChangeSerializer(serializers.Serializer):
     title = serializers.CharField(required=False, max_length=200)
     body = serializers.CharField(required=False, allow_blank=True, trim_whitespace=False)
+    sections = serializers.DictField(
+        required=False,
+        child=serializers.CharField(allow_blank=True, trim_whitespace=False),
+        help_text="Free-text Sections to change on an Item Page, by name.",
+    )
+
+
+class PageTemplateSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    name = serializers.CharField()
+    item_kind = serializers.CharField()
+    device_type_id = serializers.IntegerField(allow_null=True)
+    device_type_name = serializers.CharField(allow_null=True)
+    is_default = serializers.BooleanField()
+    body = serializers.CharField(allow_blank=True)
+    sections = serializers.ListField(child=serializers.CharField())
+    page_count = serializers.IntegerField()
+
+
+class PageTemplateCreateSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=100)
+    device_type_id = serializers.IntegerField(min_value=1, max_value=9223372036854775807)
+    body = serializers.CharField(required=False, allow_blank=True, trim_whitespace=False)
+
+
+class PageTemplateChangeSerializer(serializers.Serializer):
+    name = serializers.CharField(required=False, max_length=100)
+    body = serializers.CharField(required=False, allow_blank=True, trim_whitespace=False)
+    confirmed_removals = serializers.DictField(
+        required=False,
+        child=serializers.IntegerField(min_value=0),
+        help_text="Each removed Free-text Section with the affected Page count from the preview.",
+    )
+
+
+class PageTemplatePreviewSerializer(serializers.Serializer):
+    body = serializers.CharField(allow_blank=True, trim_whitespace=False)
+
+
+class RemovedSectionSerializer(serializers.Serializer):
+    name = serializers.CharField()
+    page_count = serializers.IntegerField()
 
 
 class MentionOptionSerializer(serializers.Serializer):
