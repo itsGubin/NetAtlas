@@ -81,7 +81,13 @@ from netatlas.devices.services import (
     update_rack,
     virtual_devices,
 )
-from netatlas.history.services import item_history
+from netatlas.history.services import child_history, item_history
+from netatlas.pages.attachments import (
+    add_attachment,
+    attachment_response,
+    get_attachment,
+    list_attachments,
+)
 from netatlas.pages.services import (
     UnconfirmedSectionRemoval,
     create_page_template,
@@ -1065,6 +1071,8 @@ def _after_delete(request, kind, item_id) -> str:
     if kind == "dhcp-range":
         subnet_id = get_dhcp_range(request.user, item_id).subnet_id
         return reverse("web:subnet", args=[subnet_id])
+    if kind == "attachment":
+        return reverse("web:page", args=[get_attachment(request.user, item_id).page_id])
     lists = {"customer": "sites", "device-type": "device-types", "ip-address": "ip-addresses"}
     return reverse(f"web:{lists.get(kind, f'{kind}s')}")
 
@@ -1085,6 +1093,7 @@ def _kind_names() -> dict[str, str]:
         "tag": _("Tag"),
         "page": _("Page"),
         "page-template": _("Page Template"),
+        "attachment": _("Attachment"),
     }
 
 
@@ -1104,7 +1113,12 @@ def _render_delete(request, kind, item_id, errors=(), status=200):
         "changed": _impact_rows(preview.changed),
         "moved": _impact_rows(preview.moved),
         "broken_live_fields": _impact_rows(preview.broken_live_fields),
-        "item_url": reverse(f"web:{kind}", args=[item_id]),
+        "broken_embeds": _impact_rows(preview.broken_embeds),
+        "item_url": (
+            reverse("web:page", args=[get_attachment(request.user, item_id).page_id])
+            if kind == "attachment"
+            else reverse(f"web:{kind}", args=[item_id])
+        ),
         "errors": [*errors, *preview.blocked],
     }
     return render(request, "netatlas/delete_confirmation.html", context, status=status)
@@ -1132,15 +1146,39 @@ def pages(request):
 
 
 def page(request, page_id):
+    return _render_page(request, page_id)
+
+
+@require_POST
+def page_attachments(request, page_id):
+    require_editor(request.user)
+    try:
+        add_attachment(request.user, page_id, request.FILES.get("file"))
+    except ValidationError as error:
+        return _render_page(request, page_id, errors=error.messages, status=400)
+    return redirect("web:page", page_id=page_id)
+
+
+def attachment(request, attachment_id):
+    return attachment_response(request.user, attachment_id)
+
+
+def _render_page(request, page_id, errors=(), status=200):
     item = get_page(request.user, page_id)
     item_url = reverse(f"web:{item.item_kind}", args=[item.item_id]) if item.item_id else None
+    entries = [
+        *item_history(request.user, "page", page_id),
+        *child_history(request.user, "attachment", "page", page_id),
+    ]
     context = {
         "page": item,
         "html": page_html(request.user, page_id),
         "item_url": item_url,
-        "entries": item_history(request.user, "page", page_id),
+        "attachments": list_attachments(request.user, page_id),
+        "entries": sorted(entries, key=lambda entry: (entry.at, entry.id), reverse=True),
+        "errors": errors,
     }
-    return render(request, "netatlas/page.html", context)
+    return render(request, "netatlas/page.html", context, status=status)
 
 
 @require_http_methods(["GET", "POST"])

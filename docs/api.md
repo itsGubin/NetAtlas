@@ -164,6 +164,17 @@ Every error has the same shape. `fields` lists messages per field and is empty f
 - A Live Field is written `@{device:12.ip-addresses}` and always shows the current value. The form `@{any text}(device:12.ip-addresses)` is accepted and stored in the short form. `GET /api/pages/<id>/live-fields/` returns each one's current `values`, with `is_broken` true once its item is deleted. `GET /api/live-field-options/?q=core ip` finds fields to insert.
 - Pages accept Tags through `/api/items/page/<id>/tags/`, and `GET /api/pages/?tag=prod` filters by them.
 
+## Attachments
+
+Every Role can read and download attachments. Admins and Editors can upload and delete.
+
+- `GET /api/pages/<id>/attachments/` lists a Page's attachments. `POST` to it uploads one as multipart form data in the field `file`.
+- `GET` and `DELETE /api/attachments/<id>/` read and delete one. `GET /api/attachments/<id>/download/` returns the file.
+- A file is at most 25 MB, or `NETATLAS_MAX_ATTACHMENT_MB`.
+- Files whose bytes are PNG, JPEG, GIF or WebP are served inline. Everything else, including SVG, HTML and PDF, is served as a download.
+- `![Rack front](attachment:12)` in a Page's Markdown embeds an image. Each image's `markdown` field holds this text. An embed of a deleted attachment shows as deleted.
+- Attachments are deleted with their Page. History keeps each attachment's details, but not the file itself.
+
 ## Page Templates
 
 `/api/page-templates/` supports list, create, read, `PATCH` and delete. Every Role can read. Admins and Editors can write.
@@ -176,10 +187,11 @@ Every error has the same shape. `fields` lists messages per field and is empty f
 
 ## Delete preview
 
-`GET /api/delete-preview/<kind>/<id>/` shows what deleting an item would do, without changing anything. It requires the Admin or Editor Role. `kind` is `customer`, `site`, `device`, `interface`, `rack`, `vlan`, `subnet`, `dhcp-range`, `ip-address`, `cable`, `device-type`, `tag`, `page` or `page-template`.
+`GET /api/delete-preview/<kind>/<id>/` shows what deleting an item would do, without changing anything. It requires the Admin or Editor Role. `kind` is `customer`, `site`, `device`, `interface`, `rack`, `vlan`, `subnet`, `dhcp-range`, `ip-address`, `cable`, `device-type`, `tag`, `page`, `page-template` or `attachment`.
 
 - `deleted`, `changed` and `moved` list every affected item with its `effect`. `moved` holds what moves up the Subnet tree.
 - `broken_live_fields` lists the Live Fields on remaining Pages that will show as broken.
+- `broken_embeds` lists the embedded attachments on remaining Pages that will show as deleted.
 - `blocked` holds the reasons a delete would be refused. A blocked item still returns `200`.
 - The preview is optional for API clients, and `DELETE` works without it. The web UI always shows it and asks again if the impact changed in the meantime.
 

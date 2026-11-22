@@ -20,7 +20,11 @@
 <h2>{% translate "Live Fields that will break" %}</h2>
 {% include "netatlas/_delete_impacts.html" with impacts=broken_live_fields %}
 {% endif %}
-{% if not preview.blocked and not deleted and not changed and not moved and not broken_live_fields %}
+{% if broken_embeds %}
+<h2>{% translate "Embedded attachments that will break" %}</h2>
+{% include "netatlas/_delete_impacts.html" with impacts=broken_embeds %}
+{% endif %}
+{% if not preview.blocked and not deleted and not changed and not moved and not broken_live_fields and not broken_embeds %}
 <p>{% translate "Nothing else is affected." %}</p>
 {% endif %}
 

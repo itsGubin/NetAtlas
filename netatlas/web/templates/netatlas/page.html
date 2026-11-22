@@ -12,6 +12,28 @@
 {% if not page.item_id %}<p><a href="{% url 'web:page-delete' page.id %}">{% translate "Delete Page" %}</a></p>{% endif %}
 {% endif %}
 
+<h2>{% translate "Attachments" %}</h2>
+{% if attachments %}
+<ul>
+  {% for attachment in attachments %}
+  <li>
+    <a href="{% url 'web:attachment' attachment.id %}">{{ attachment.filename }}</a> ({{ attachment.size|filesizeformat }})
+    {% if can_edit %}{% if attachment.markdown %}· <code>{{ attachment.markdown }}</code> {% endif %}· <a href="{% url 'web:attachment-delete' attachment.id %}">{% translate "Delete" %}</a>{% endif %}
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p>—</p>
+{% endif %}
+{% if can_edit %}
+<form method="post" action="{% url 'web:page-attachments' page.id %}" enctype="multipart/form-data">
+  {% csrf_token %}
+  <p><label>{% translate "File" %} <input type="file" name="file" required></label></p>
+  <button type="submit">{% translate "Upload" %}</button>
+</form>
+<p><small>{% translate "To show an image in the Page, paste its code into the Page's text." %}</small></p>
+{% endif %}
+
 {% include "netatlas/_tags.html" with tag_kind="page" tag_item=page.id %}
 
 <h2>{% translate "History" %}</h2>

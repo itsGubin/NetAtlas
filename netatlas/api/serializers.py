@@ -524,6 +524,9 @@ class DeletePreviewSerializer(serializers.Serializer):
     broken_live_fields = DeleteImpactSerializer(
         many=True, help_text="Live Fields on remaining Pages that will show as broken."
     )
+    broken_embeds = DeleteImpactSerializer(
+        many=True, help_text="Embedded attachments on remaining Pages that will show as deleted."
+    )
     blocked = serializers.ListField(
         child=serializers.CharField(), help_text="Why the delete would be refused."
     )
@@ -589,6 +592,22 @@ class PageChangeSerializer(serializers.Serializer):
         child=serializers.CharField(allow_blank=True, trim_whitespace=False),
         help_text="Free-text Sections to change on an Item Page, by name.",
     )
+
+
+class AttachmentSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    page_id = serializers.IntegerField()
+    filename = serializers.CharField()
+    content_type = serializers.CharField(help_text="Decided from the file's bytes.")
+    size = serializers.IntegerField(help_text="In bytes.")
+    is_image = serializers.BooleanField()
+    markdown = serializers.CharField(
+        allow_blank=True, help_text="Paste into a Page to show this image. Empty for other files."
+    )
+
+
+class AttachmentUploadSerializer(serializers.Serializer):
+    file = serializers.FileField()
 
 
 class PageTemplateSerializer(serializers.Serializer):

@@ -1,11 +1,14 @@
 from dataclasses import asdict
 
 from django.utils.translation import gettext as _
+from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import status as http_status
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.exceptions import ValidationError as ApiValidationError
 from rest_framework.permissions import AllowAny
+from rest_framework.negotiation import BaseContentNegotiation
+from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -55,6 +58,8 @@ from netatlas.api.serializers import (
     LiveFieldOptionSerializer,
     LiveFieldValueSerializer,
     MentionOptionSerializer,
+    AttachmentSerializer,
+    AttachmentUploadSerializer,
     PageChangeSerializer,
     PageTemplateChangeSerializer,
     PageTemplateCreateSerializer,
@@ -166,6 +171,13 @@ from netatlas.devices.services import (
     virtual_devices,
 )
 from netatlas.history.services import item_history
+from netatlas.pages.attachments import (
+    add_attachment,
+    attachment_response,
+    delete_attachment,
+    get_attachment,
+    list_attachments,
+)
 from netatlas.pages.services import (
     UnconfirmedSectionRemoval,
     create_page_template,
@@ -1079,6 +1091,67 @@ class PageDetailView(APIView):
     def delete(self, request, page_id):
         delete_page(request.user, page_id)
         return Response(status=http_status.HTTP_204_NO_CONTENT)
+
+
+class AnyAcceptNegotiation(BaseContentNegotiation):
+    """A download answers with the file's own type, whatever the client says it accepts."""
+
+    def select_parser(self, request, parsers):
+        return parsers[0]
+
+    def select_renderer(self, request, renderers, format_suffix=None):
+        return renderers[0], renderers[0].media_type
+
+
+class PageAttachmentListView(APIView):
+    parser_classes = [MultiPartParser]
+
+    @extend_schema(
+        operation_id="page_attachments_list",
+        parameters=PAGINATION,
+        responses={200: page_of(AttachmentSerializer), **errors(400, 401, 403, 404)},
+    )
+    def get(self, request, page_id):
+        attachments = list_attachments(request.user, page_id)
+        allowed_filters(request)
+        return paginated(request, self, attachments, asdict)
+
+    @extend_schema(
+        operation_id="page_attachments_create",
+        description="Uploads a file as multipart form data, in the field `file`.",
+        request={"multipart/form-data": AttachmentUploadSerializer},
+        responses={201: AttachmentSerializer, **errors(400, 401, 403, 404)},
+    )
+    def post(self, request, page_id):
+        require_editor(request.user)
+        attachment = add_attachment(request.user, page_id, request.FILES.get("file"))
+        return Response(asdict(attachment), status=http_status.HTTP_201_CREATED)
+
+
+class AttachmentDetailView(APIView):
+    @extend_schema(responses={200: AttachmentSerializer, **errors(401, 403, 404)})
+    def get(self, request, attachment_id):
+        return Response(asdict(get_attachment(request.user, attachment_id)))
+
+    @extend_schema(responses={204: None, **errors(401, 403, 404)})
+    def delete(self, request, attachment_id):
+        delete_attachment(request.user, attachment_id)
+        return Response(status=http_status.HTTP_204_NO_CONTENT)
+
+
+class AttachmentDownloadView(APIView):
+    content_negotiation_class = AnyAcceptNegotiation
+
+    @extend_schema(
+        operation_id="attachment_download",
+        description="The file. Only a verified PNG, JPEG, GIF or WebP is served inline.",
+        responses={
+            (200, "application/octet-stream"): OpenApiTypes.BINARY,
+            **errors(401, 403, 404),
+        },
+    )
+    def get(self, request, attachment_id):
+        return attachment_response(request.user, attachment_id)
 
 
 class PageTemplateListView(APIView):

@@ -32,8 +32,14 @@ from netatlas.devices.services import (
     delete_rack,
 )
 from netatlas.history.services import capture_changes, rehearse
-from netatlas.pages.models import Page, PageTemplate
-from netatlas.pages.services import broken_live_fields, delete_page, delete_page_template
+from netatlas.pages.attachments import delete_attachment
+from netatlas.pages.models import Attachment, Page, PageTemplate
+from netatlas.pages.services import (
+    broken_embeds,
+    broken_live_fields,
+    delete_page,
+    delete_page_template,
+)
 from netatlas.places.models import Customer, Site
 from netatlas.places.services import delete_customer, delete_site
 from netatlas.tagging.models import Tag
@@ -54,6 +60,7 @@ _DELETERS = {
     "tag": (Tag, delete_tag),
     "page": (Page, delete_page),
     "page-template": (PageTemplate, delete_page_template),
+    "attachment": (Attachment, delete_attachment),
 }
 DELETABLE_KINDS = tuple(_DELETERS)
 
@@ -83,6 +90,8 @@ class DeletePreview:
     fingerprint: str
     # Live Fields on Pages that stay, which will show as broken.
     broken_live_fields: list[Impact] = field(default_factory=list)
+    # Embedded images on Pages that stay, which will show as deleted.
+    broken_embeds: list[Impact] = field(default_factory=list)
 
 
 def preview_delete(actor, kind: str, item_id: int) -> DeletePreview:
@@ -95,6 +104,7 @@ def preview_delete(actor, kind: str, item_id: int) -> DeletePreview:
             moves = _moves(kind, item_id)
             delete(actor, item_id)
             broken = _broken_live_fields(captured)
+            embeds = _broken_embeds(captured)
     except ValidationError as error:
         return DeletePreview(kind, item_id, label, [], [], [], error.messages, "")
 
@@ -116,7 +126,7 @@ def preview_delete(actor, kind: str, item_id: int) -> DeletePreview:
             for move_kind, move_label, target in moves
         ],
         blocked=[],
-        fingerprint=_fingerprint(captured, moves, broken),
+        fingerprint=_fingerprint(captured, moves, broken, embeds),
         broken_live_fields=[
             Impact(
                 "page",
@@ -126,6 +136,15 @@ def preview_delete(actor, kind: str, item_id: int) -> DeletePreview:
                 % {"item": entry.item_label, "field": entry.field_label},
             )
             for entry in broken
+        ],
+        broken_embeds=[
+            Impact(
+                "page",
+                entry.page_id,
+                entry.page_title,
+                _("Embedded attachment breaks: %(name)s") % {"name": entry.attachment_label},
+            )
+            for entry in embeds
         ],
     )
 
@@ -138,7 +157,9 @@ def confirm_delete(actor, kind: str, item_id: int, fingerprint: str) -> None:
     with transaction.atomic(), capture_changes() as captured:
         moves = _moves(kind, item_id)
         delete(actor, item_id)
-        expected = _fingerprint(captured, moves, _broken_live_fields(captured))
+        expected = _fingerprint(
+            captured, moves, _broken_live_fields(captured), _broken_embeds(captured)
+        )
         # Compared as bytes, because the submitted value can be any text.
         if not hmac.compare_digest(expected.encode(), fingerprint.encode()):
             raise StaleDelete
@@ -160,6 +181,15 @@ def _label(model, item_id: int) -> str:
 def _broken_live_fields(captured) -> list:
     """Asked after the delete, so Pages deleted along with the item don't count."""
     return broken_live_fields(
+        (change.kind, change.item_id, change.label)
+        for change in captured
+        if change.action == "deleted"
+    )
+
+
+def _broken_embeds(captured) -> list:
+    """Asked after the delete, so Pages deleted along with the attachment don't count."""
+    return broken_embeds(
         (change.kind, change.item_id, change.label)
         for change in captured
         if change.action == "deleted"
@@ -194,7 +224,7 @@ def _effect(change) -> str:
     return _("changes")
 
 
-def _fingerprint(captured, moves, broken) -> str:
+def _fingerprint(captured, moves, broken, embeds) -> str:
     """Identifies exactly what a delete does, including every old value it records."""
     changes = sorted(
         json.dumps(
@@ -210,5 +240,6 @@ def _fingerprint(captured, moves, broken) -> str:
         for c in captured
     )
     references = [[b.page_id, b.kind, b.item_id, b.field] for b in broken]
-    payload = json.dumps([changes, moves, references], cls=DjangoJSONEncoder)
+    embedded = [[e.page_id, e.attachment_id] for e in embeds]
+    payload = json.dumps([changes, moves, references, embedded], cls=DjangoJSONEncoder)
     return hashlib.sha256(payload.encode()).hexdigest()

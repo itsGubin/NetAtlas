@@ -98,6 +98,27 @@ class PageTemplate(TrackedModel):
         return self.name
 
 
+class Attachment(TrackedModel):
+    """A file on a Page. History records its details, and the file goes with the Page."""
+
+    history_kind = "attachment"
+    history_exclude = ("storage_name",)
+
+    page = models.ForeignKey(Page, on_delete=models.CASCADE, related_name="attachments")
+    filename = models.CharField(max_length=255)
+    # Decided from the file's bytes, never from what the uploader claimed.
+    content_type = models.CharField(max_length=100)
+    size = models.PositiveBigIntegerField()
+    storage_name = models.CharField(max_length=255, unique=True)
+
+    def __str__(self):
+        return self.filename
+
+    @property
+    def is_image(self) -> bool:
+        return self.content_type.startswith("image/")
+
+
 class Mention(models.Model):
     """A Page's link to an item. Derived from the Page's body whenever it is saved."""
 

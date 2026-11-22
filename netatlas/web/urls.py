@@ -124,6 +124,14 @@ urlpatterns = [
         {"kind": "page"},
         name="page-delete",
     ),
+    path("pages/<int:page_id>/attachments/", views.page_attachments, name="page-attachments"),
+    path("attachments/<int:attachment_id>/", views.attachment, name="attachment"),
+    path(
+        "attachments/<int:item_id>/delete/",
+        views.delete_confirmation,
+        {"kind": "attachment"},
+        name="attachment-delete",
+    ),
     path("page-templates/", views.page_templates, name="page-templates"),
     path("page-templates/<int:template_id>/", views.page_template, name="page-template"),
     path(
