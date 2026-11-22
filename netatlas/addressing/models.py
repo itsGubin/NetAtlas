@@ -2,10 +2,10 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
-from netatlas.history.models import TrackedModel
+from netatlas.tagging.models import TaggableModel
 
 
-class Vlan(TrackedModel):
+class Vlan(TaggableModel):
     """A numbered layer-2 broadcast domain in one Site (ADR 0002)."""
 
     history_kind = "vlan"
@@ -29,7 +29,7 @@ class Vlan(TrackedModel):
         return f"VLAN {self.number} {self.name}".strip()
 
 
-class Subnet(TrackedModel):
+class Subnet(TaggableModel):
     """A CIDR block in one Site (ADR 0002). Nesting is derived from the addresses."""
 
     history_kind = "subnet"
@@ -54,7 +54,7 @@ class Subnet(TrackedModel):
         return self.cidr
 
 
-class IpAddress(TrackedModel):
+class IpAddress(TaggableModel):
     """One address in a Site. Assigned with an Interface, Reserved without (ADR 0005).
 
     Its Subnet is derived: always the most specific one containing it.
@@ -87,7 +87,7 @@ class IpAddress(TrackedModel):
         return self.address
 
 
-class DhcpRange(TrackedModel):
+class DhcpRange(TaggableModel):
     """A block of addresses in a Subnet handed out dynamically, inclusive at both ends."""
 
     history_kind = "dhcp-range"

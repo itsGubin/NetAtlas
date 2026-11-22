@@ -1,9 +1,9 @@
 from django.db import models
 
-from netatlas.history.models import TrackedModel
+from netatlas.tagging.models import TaggableModel
 
 
-class Customer(TrackedModel):
+class Customer(TaggableModel):
     """An optional grouping of Sites belonging to one client organisation."""
 
     history_kind = "customer"
@@ -14,7 +14,7 @@ class Customer(TrackedModel):
         return self.name
 
 
-class Site(TrackedModel):
+class Site(TaggableModel):
     """A physical place where Devices live. Its Customer is optional."""
 
     history_kind = "site"

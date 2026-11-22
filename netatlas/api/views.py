@@ -50,7 +50,7 @@ from netatlas.addressing.services import (
     vlan_usage,
 )
 from netatlas.api.authentication import BearerTokenAuthentication
-from netatlas.api.conventions import allowed_filters, paginated
+from netatlas.api.conventions import allowed_filters, paginated, with_tags
 from netatlas.api.serializers import (
     AssignIpAddressSerializer,
     CableChangeSerializer,
@@ -103,6 +103,10 @@ from netatlas.api.serializers import (
     SubnetFilterSerializer,
     SubnetSerializer,
     SubnetUsageSerializer,
+    TagChangeSerializer,
+    TagRefSerializer,
+    TagSerializer,
+    TagUsageSerializer,
     TokenSerializer,
     UserSerializer,
     VirtualDeviceSerializer,
@@ -163,11 +167,24 @@ from netatlas.places.services import (
     update_site,
 )
 from netatlas.system.services import get_system_status
+from netatlas.tagging.services import (
+    add_tag,
+    create_tag,
+    delete_tag,
+    list_tags,
+    remove_tag,
+    tag_usage,
+    tags_of,
+    update_tag,
+)
 
 PAGINATION = [
     OpenApiParameter("page", int, description="Page number, starting at 1."),
     OpenApiParameter("page_size", int, description="Items per page. Default 50, maximum 200."),
 ]
+TAG_FILTER = OpenApiParameter(
+    "tag", str, many=True, description="Repeat to require several Tags. Any spelling matches."
+)
 
 
 class StatusView(APIView):
@@ -287,13 +304,13 @@ class DeletePreviewView(APIView):
 class CustomerListView(APIView):
     @extend_schema(
         operation_id="customers_list",
-        parameters=PAGINATION,
+        parameters=[*PAGINATION, TAG_FILTER],
         responses={200: page_of(CustomerSerializer), **errors(400, 401, 403)},
     )
     def get(self, request):
         customers = list_customers(request.user)
-        allowed_filters(request)
-        return paginated(request, self, customers, asdict)
+        allowed_filters(request, "tag")
+        return paginated(request, self, with_tags(request, "customer", customers), asdict)
 
     @extend_schema(
         request=CustomerChangeSerializer,
@@ -335,15 +352,15 @@ class CustomerDetailView(APIView):
 class SiteListView(APIView):
     @extend_schema(
         operation_id="sites_list",
-        parameters=[*PAGINATION, OpenApiParameter("customer", int)],
+        parameters=[*PAGINATION, TAG_FILTER, OpenApiParameter("customer", int)],
         responses={200: page_of(SiteSerializer), **errors(400, 401, 403)},
     )
     def get(self, request):
         require_role(request.user)
-        filters = SiteFilterSerializer(data=allowed_filters(request, "customer"))
+        filters = SiteFilterSerializer(data=allowed_filters(request, "customer", "tag"))
         filters.is_valid(raise_exception=True)
         sites = list_sites(request.user, customer_id=filters.validated_data.get("customer"))
-        return paginated(request, self, sites, asdict)
+        return paginated(request, self, with_tags(request, "site", sites), asdict)
 
     @extend_schema(
         request=NewSiteSerializer,
@@ -384,13 +401,13 @@ class SiteDetailView(APIView):
 class DeviceTypeListView(APIView):
     @extend_schema(
         operation_id="device_types_list",
-        parameters=PAGINATION,
+        parameters=[*PAGINATION, TAG_FILTER],
         responses={200: page_of(DeviceTypeSerializer), **errors(400, 401, 403)},
     )
     def get(self, request):
         device_types = list_device_types(request.user)
-        allowed_filters(request)
-        return paginated(request, self, device_types, asdict)
+        allowed_filters(request, "tag")
+        return paginated(request, self, with_tags(request, "device-type", device_types), asdict)
 
     @extend_schema(
         description="Interface names may be bulk patterns such as `port[1-48]`.",
@@ -433,6 +450,7 @@ class DeviceListView(APIView):
         operation_id="devices_list",
         parameters=[
             *PAGINATION,
+            TAG_FILTER,
             OpenApiParameter("site", int),
             OpenApiParameter("kind", str, enum=["physical", "virtual"]),
             OpenApiParameter("parent", int, description="Direct Virtual Devices of a Hypervisor."),
@@ -441,7 +459,9 @@ class DeviceListView(APIView):
     )
     def get(self, request):
         require_role(request.user)
-        filters = DeviceFilterSerializer(data=allowed_filters(request, "site", "kind", "parent"))
+        filters = DeviceFilterSerializer(
+            data=allowed_filters(request, "site", "kind", "parent", "tag")
+        )
         filters.is_valid(raise_exception=True)
         values = filters.validated_data
         devices = list_devices(
@@ -450,7 +470,7 @@ class DeviceListView(APIView):
             kind=values.get("kind"),
             parent_id=values.get("parent"),
         )
-        return paginated(request, self, devices, asdict)
+        return paginated(request, self, with_tags(request, "device", devices), asdict)
 
     @extend_schema(
         description="A Device Type's Interfaces and height are copied once, at creation.",
@@ -505,13 +525,13 @@ class VirtualDeviceListView(APIView):
 class InterfaceListView(APIView):
     @extend_schema(
         operation_id="device_interfaces_list",
-        parameters=PAGINATION,
+        parameters=[*PAGINATION, TAG_FILTER],
         responses={200: page_of(InterfaceSerializer), **errors(400, 401, 403, 404)},
     )
     def get(self, request, device_id):
         interfaces = list_interfaces(request.user, device_id)
-        allowed_filters(request)
-        return paginated(request, self, interfaces, asdict)
+        allowed_filters(request, "tag")
+        return paginated(request, self, with_tags(request, "interface", interfaces), asdict)
 
     @extend_schema(
         description="A Virtual Device can only have Virtual Interfaces.",
@@ -603,15 +623,15 @@ class DevicePlacementView(APIView):
 class RackListView(APIView):
     @extend_schema(
         operation_id="racks_list",
-        parameters=[*PAGINATION, OpenApiParameter("site", int)],
+        parameters=[*PAGINATION, TAG_FILTER, OpenApiParameter("site", int)],
         responses={200: page_of(RackSerializer), **errors(400, 401, 403)},
     )
     def get(self, request):
         require_role(request.user)
-        filters = RackFilterSerializer(data=allowed_filters(request, "site"))
+        filters = RackFilterSerializer(data=allowed_filters(request, "site", "tag"))
         filters.is_valid(raise_exception=True)
         racks = list_racks(request.user, site_id=filters.validated_data.get("site"))
-        return paginated(request, self, racks, asdict)
+        return paginated(request, self, with_tags(request, "rack", racks), asdict)
 
     @extend_schema(
         request=NewRackSerializer,
@@ -676,15 +696,15 @@ class InterfaceVlansView(APIView):
 class VlanListView(APIView):
     @extend_schema(
         operation_id="vlans_list",
-        parameters=[*PAGINATION, OpenApiParameter("site", int)],
+        parameters=[*PAGINATION, TAG_FILTER, OpenApiParameter("site", int)],
         responses={200: page_of(VlanSerializer), **errors(400, 401, 403)},
     )
     def get(self, request):
         require_role(request.user)
-        filters = VlanFilterSerializer(data=allowed_filters(request, "site"))
+        filters = VlanFilterSerializer(data=allowed_filters(request, "site", "tag"))
         filters.is_valid(raise_exception=True)
         vlans = list_vlans(request.user, site_id=filters.validated_data.get("site"))
-        return paginated(request, self, vlans, asdict)
+        return paginated(request, self, with_tags(request, "vlan", vlans), asdict)
 
     @extend_schema(
         description="The number is 1 to 4094 and unique within a Site.",
@@ -738,6 +758,7 @@ class IpAddressListView(APIView):
         description="In numeric order. `subnet` matches the most specific containing Subnet.",
         parameters=[
             *PAGINATION,
+            TAG_FILTER,
             OpenApiParameter("site", int),
             OpenApiParameter("subnet", int),
             OpenApiParameter("interface", int),
@@ -748,7 +769,7 @@ class IpAddressListView(APIView):
     def get(self, request):
         require_role(request.user)
         filters = IpAddressFilterSerializer(
-            data=allowed_filters(request, "site", "subnet", "interface", "status")
+            data=allowed_filters(request, "site", "subnet", "interface", "status", "tag")
         )
         filters.is_valid(raise_exception=True)
         values = filters.validated_data
@@ -759,7 +780,7 @@ class IpAddressListView(APIView):
             interface_id=values.get("interface"),
             status=values.get("status"),
         )
-        return paginated(request, self, addresses, asdict)
+        return paginated(request, self, with_tags(request, "ip-address", addresses), asdict)
 
     @extend_schema(
         description="Must be inside a Subnet of the Site and outside every DHCP Range.",
@@ -814,15 +835,15 @@ class InterfaceIpAddressesView(APIView):
 class DhcpRangeListView(APIView):
     @extend_schema(
         operation_id="dhcp_ranges_list",
-        parameters=[*PAGINATION, OpenApiParameter("subnet", int)],
+        parameters=[*PAGINATION, TAG_FILTER, OpenApiParameter("subnet", int)],
         responses={200: page_of(DhcpRangeSerializer), **errors(400, 401, 403)},
     )
     def get(self, request):
         require_role(request.user)
-        filters = DhcpRangeFilterSerializer(data=allowed_filters(request, "subnet"))
+        filters = DhcpRangeFilterSerializer(data=allowed_filters(request, "subnet", "tag"))
         filters.is_valid(raise_exception=True)
         ranges = list_dhcp_ranges(request.user, subnet_id=filters.validated_data.get("subnet"))
-        return paginated(request, self, ranges, asdict)
+        return paginated(request, self, with_tags(request, "dhcp-range", ranges), asdict)
 
     @extend_schema(
         description="Inclusive at both ends. Cannot overlap IP Addresses or nested Subnets.",
@@ -873,6 +894,7 @@ class SubnetListView(APIView):
         description="In tree order: each Subnet is directly followed by those nested in it.",
         parameters=[
             *PAGINATION,
+            TAG_FILTER,
             OpenApiParameter("site", int),
             OpenApiParameter("version", int, enum=[4, 6]),
         ],
@@ -880,13 +902,13 @@ class SubnetListView(APIView):
     )
     def get(self, request):
         require_role(request.user)
-        filters = SubnetFilterSerializer(data=allowed_filters(request, "site", "version"))
+        filters = SubnetFilterSerializer(data=allowed_filters(request, "site", "version", "tag"))
         filters.is_valid(raise_exception=True)
         values = filters.validated_data
         subnets = list_subnets(
             request.user, site_id=values.get("site"), version=values.get("version")
         )
-        return paginated(request, self, subnets, asdict)
+        return paginated(request, self, with_tags(request, "subnet", subnets), asdict)
 
     @extend_schema(
         description="A CIDR with host bits set is refused. Unique within a Site.",
@@ -930,16 +952,17 @@ class CableListView(APIView):
         operation_id="cables_list",
         parameters=[
             *PAGINATION,
+            TAG_FILTER,
             OpenApiParameter("device", int, description="Cables with an end on this Device."),
         ],
         responses={200: page_of(CableSerializer), **errors(400, 401, 403)},
     )
     def get(self, request):
         require_role(request.user)
-        filters = CableFilterSerializer(data=allowed_filters(request, "device"))
+        filters = CableFilterSerializer(data=allowed_filters(request, "device", "tag"))
         filters.is_valid(raise_exception=True)
         cables = list_cables(request.user, device_id=filters.validated_data.get("device"))
-        return paginated(request, self, cables, asdict)
+        return paginated(request, self, with_tags(request, "cable", cables), asdict)
 
     @extend_schema(
         description="Joins two Physical Interfaces. Each can have one Cable. Sites may differ.",
@@ -972,4 +995,86 @@ class CableDetailView(APIView):
     @extend_schema(responses={204: None, **errors(401, 403, 404)})
     def delete(self, request, cable_id):
         delete_cable(request.user, cable_id)
+        return Response(status=http_status.HTTP_204_NO_CONTENT)
+
+
+class TagListView(APIView):
+    @extend_schema(
+        operation_id="tags_list",
+        parameters=PAGINATION,
+        responses={200: page_of(TagSerializer), **errors(400, 401, 403)},
+    )
+    def get(self, request):
+        tags = list_tags(request.user)
+        allowed_filters(request)
+        return paginated(request, self, tags, asdict)
+
+    @extend_schema(
+        description="Names are unique in any spelling, so `Prod` and `prod` are one Tag.",
+        request=TagChangeSerializer,
+        responses={201: TagSerializer, **errors(400, 401, 403)},
+    )
+    def post(self, request):
+        require_editor(request.user)
+        body = TagChangeSerializer(data=request.data)
+        body.is_valid(raise_exception=True)
+        tag = create_tag(request.user, body.validated_data["name"])
+        return Response(asdict(tag), status=http_status.HTTP_201_CREATED)
+
+
+class TagDetailView(APIView):
+    @extend_schema(
+        description="The Tag and every item carrying it.",
+        responses={200: TagUsageSerializer, **errors(401, 403, 404)},
+    )
+    def get(self, request, tag_id):
+        return Response(asdict(tag_usage(request.user, tag_id)))
+
+    @extend_schema(
+        request=TagChangeSerializer,
+        responses={200: TagSerializer, **errors(400, 401, 403, 404)},
+    )
+    def patch(self, request, tag_id):
+        require_editor(request.user)
+        body = TagChangeSerializer(data=request.data)
+        body.is_valid(raise_exception=True)
+        return Response(asdict(update_tag(request.user, tag_id, body.validated_data["name"])))
+
+    @extend_schema(
+        description="Removes the Tag from every item, recorded in each item's History.",
+        responses={204: None, **errors(401, 403, 404)},
+    )
+    def delete(self, request, tag_id):
+        delete_tag(request.user, tag_id)
+        return Response(status=http_status.HTTP_204_NO_CONTENT)
+
+
+class ItemTagsView(APIView):
+    @extend_schema(
+        operation_id="item_tags_list",
+        parameters=PAGINATION,
+        responses={200: page_of(TagRefSerializer), **errors(400, 401, 403, 404)},
+    )
+    def get(self, request, kind, item_id):
+        tags = tags_of(request.user, kind, item_id)
+        allowed_filters(request)
+        return paginated(request, self, tags, asdict)
+
+    @extend_schema(
+        description="Adds a Tag, creating it on first use.",
+        request=TagChangeSerializer,
+        responses={201: TagRefSerializer, **errors(400, 401, 403, 404)},
+    )
+    def post(self, request, kind, item_id):
+        require_editor(request.user)
+        body = TagChangeSerializer(data=request.data)
+        body.is_valid(raise_exception=True)
+        tag = add_tag(request.user, kind, item_id, body.validated_data["name"])
+        return Response(asdict(tag), status=http_status.HTTP_201_CREATED)
+
+
+class ItemTagDetailView(APIView):
+    @extend_schema(responses={204: None, **errors(401, 403, 404)})
+    def delete(self, request, kind, item_id, tag_id):
+        remove_tag(request.user, kind, item_id, tag_id)
         return Response(status=http_status.HTTP_204_NO_CONTENT)

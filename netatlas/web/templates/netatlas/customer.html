@@ -14,6 +14,8 @@
 <p><a href="{% url 'web:customer-delete' customer.id %}">{% translate "Delete Customer" %}</a></p>
 {% endif %}
 
+{% include "netatlas/_tags.html" with tag_kind="customer" tag_item=customer.id %}
+
 <h2>{% translate "History" %}</h2>
 {% include "netatlas/_history.html" %}
 {% endblock %}

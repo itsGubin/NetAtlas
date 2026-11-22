@@ -145,9 +145,17 @@ Every error has the same shape. `fields` lists messages per field and is empty f
 - `GET /api/interfaces/<id>/trace/` returns the whole path through a Physical Interface as `hops`, end to end. `cable_id` on a hop is the Cable to the next hop, and is null across a pair. `is_loop` is true if the path returns to itself.
 - An Interface's `kind` cannot change while it has a Cable or a pair.
 
+## Tags
+
+`/api/tags/` supports list, create, read, `PATCH` and delete. `/api/items/<kind>/<id>/tags/` lists and adds an item's Tags, and `DELETE` on `.../tags/<tag_id>/` removes one. `kind` is any documented item kind. Every Role can read. Admins and Editors can write.
+
+- Names are unique in any spelling, so `Prod` and `prod` are one Tag. The first spelling is kept.
+- Adding a Tag by name creates it on first use. Adding, removing and deleting are recorded in each item's History.
+- Every list of documented items accepts `?tag=prod`. Repeat it to require several Tags, as in `?tag=prod&tag=dmz`.
+
 ## Delete preview
 
-`GET /api/delete-preview/<kind>/<id>/` shows what deleting an item would do, without changing anything. It requires the Admin or Editor Role. `kind` is `customer`, `site`, `device`, `interface`, `rack`, `vlan`, `subnet`, `dhcp-range`, `ip-address`, `cable` or `device-type`.
+`GET /api/delete-preview/<kind>/<id>/` shows what deleting an item would do, without changing anything. It requires the Admin or Editor Role. `kind` is `customer`, `site`, `device`, `interface`, `rack`, `vlan`, `subnet`, `dhcp-range`, `ip-address`, `cable`, `device-type` or `tag`.
 
 - `deleted`, `changed` and `moved` list every affected item with its `effect`. `moved` holds what moves up the Subnet tree.
 - `blocked` holds the reasons a delete would be refused. A blocked item still returns `200`.

@@ -1,7 +1,8 @@
-{% extends "netatlas/base.html" %}{% load i18n %}
+{% extends "netatlas/base.html" %}{% load i18n netatlas_tags %}
 {% block title %}{% translate "IP Addresses" %} · {{ block.super }}{% endblock %}
 {% block content %}
 <h1>{% translate "IP Addresses" %}</h1>
+{% tag_filter %}
 {% include "netatlas/_errors.html" %}
 <table>
   <thead>

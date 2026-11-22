@@ -1,0 +1,6 @@
+{% load i18n %}{% if links %}
+<nav aria-label="{% translate 'Filter by Tag' %}">
+  {% translate "Filter by Tag" %}:
+  {% for link in links %}<a href="{{ link.url }}"{% if link.is_active %} aria-current="true"{% endif %}>{{ link.name }}</a>{% if not forloop.last %} · {% endif %}{% endfor %}
+</nav>
+{% endif %}

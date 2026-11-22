@@ -15,6 +15,8 @@
 <p><a href="{% url 'web:site-delete' site.id %}">{% translate "Delete Site" %}</a></p>
 {% endif %}
 
+{% include "netatlas/_tags.html" with tag_kind="site" tag_item=site.id %}
+
 <h2>{% translate "History" %}</h2>
 {% include "netatlas/_history.html" %}
 {% endblock %}

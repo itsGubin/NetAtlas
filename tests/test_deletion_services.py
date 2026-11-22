@@ -82,6 +82,7 @@ def test_every_kind_of_documented_item_can_be_previewed():
         "ip-address",
         "cable",
         "device-type",
+        "tag",
     }
 
 

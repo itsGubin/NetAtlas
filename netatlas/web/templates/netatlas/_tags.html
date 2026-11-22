@@ -1,0 +1,27 @@
+{% load i18n netatlas_tags %}{# Expects `tag_kind` and `tag_item`, the item's History kind and ID. #}
+{% item_tags tag_kind tag_item as current_tags %}
+<h2>{% translate "Tags" %}</h2>
+{% if current_tags %}
+<ul>
+  {% for tag in current_tags %}
+  <li>
+    <a href="{% url 'web:tag' tag.id %}">{{ tag.name }}</a>
+    {% if can_edit %}
+    <form method="post" action="{% url 'web:item-tag-remove' tag_kind tag_item tag.id %}">
+      {% csrf_token %}
+      <button type="submit" aria-label="{% blocktranslate with name=tag.name %}Remove Tag {{ name }}{% endblocktranslate %}">{% translate "Remove" %}</button>
+    </form>
+    {% endif %}
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p>—</p>
+{% endif %}
+{% if can_edit %}
+<form method="post" action="{% url 'web:item-tags' tag_kind tag_item %}">
+  {% csrf_token %}
+  <p><label>{% translate "Add Tag" %} <input name="name" maxlength="50" required></label></p>
+  <button type="submit">{% translate "Add Tag" %}</button>
+</form>
+{% endif %}
