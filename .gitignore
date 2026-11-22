@@ -4,5 +4,6 @@ __pycache__/
 .env
 staticfiles/
 media/
+backups/
 .pytest_cache/
 .claude/settings.local.json

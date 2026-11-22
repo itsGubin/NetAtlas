@@ -59,3 +59,21 @@ jobs:
       - name: Logs on failure
         if: failure()
         run: docker compose logs
+
+  backup-restore:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Write .env
+        run: |
+          echo "NETATLAS_SECRET_KEY=ci-$(openssl rand -hex 32)" > .env
+          echo "NETATLAS_DB_PASSWORD=ci-$(openssl rand -hex 16)" >> .env
+          echo "NETATLAS_ADMIN_USERNAME=ci-admin" >> .env
+          echo "NETATLAS_ADMIN_PASSWORD=ci-$(openssl rand -hex 16)" >> .env
+      - name: Start the stack and wait for it to be healthy
+        run: docker compose up -d --build --wait --wait-timeout 120
+      - name: Follow docs/backup.md from backup to restore and upgrade
+        run: tests/compose/backup_restore.sh
+      - name: Logs on failure
+        if: failure()
+        run: docker compose logs
