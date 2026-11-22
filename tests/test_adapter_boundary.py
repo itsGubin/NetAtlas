@@ -20,7 +20,19 @@ from django.db.models import Model
 import netatlas
 
 ADAPTERS = ("web", "api")
-FORBIDDEN = ("django.db", "django.apps", "django.contrib.auth.get_user_model")
+FORBIDDEN = (
+    "django.db",
+    "django.apps",
+    "django.contrib.auth.get_user_model",
+    # These DRF classes read and write models directly, skipping the services.
+    "rest_framework.generics",
+    "rest_framework.mixins",
+    "rest_framework.serializers.ModelSerializer",
+    "rest_framework.serializers.HyperlinkedModelSerializer",
+    "rest_framework.viewsets.GenericViewSet",
+    "rest_framework.viewsets.ModelViewSet",
+    "rest_framework.viewsets.ReadOnlyModelViewSet",
+)
 PACKAGE_ROOT = Path(netatlas.__file__).parent
 
 
@@ -118,6 +130,25 @@ def test_adapter_does_not_bypass_the_service_layer(module):
         ),
         pytest.param("def view():\n    from django.db import connection", id="inside-function"),
         pytest.param("from django.contrib.auth.backends import *", id="star-import"),
+        pytest.param(
+            "from rest_framework.serializers import ModelSerializer", id="model-serializer"
+        ),
+        pytest.param(
+            "from rest_framework import serializers\nserializers.ModelSerializer",
+            id="model-serializer-by-attribute",
+        ),
+        pytest.param(
+            "from rest_framework.serializers import HyperlinkedModelSerializer",
+            id="hyperlinked-model-serializer",
+        ),
+        pytest.param("from rest_framework.viewsets import ModelViewSet", id="model-viewset"),
+        pytest.param(
+            "from rest_framework.viewsets import ReadOnlyModelViewSet", id="read-only-viewset"
+        ),
+        pytest.param("from rest_framework.viewsets import GenericViewSet", id="generic-viewset"),
+        pytest.param("from rest_framework import generics", id="generic-views"),
+        pytest.param("from rest_framework.generics import ListAPIView", id="generic-list-view"),
+        pytest.param("from rest_framework import mixins", id="model-mixins"),
     ],
 )
 def test_probe_import_is_caught(source):
@@ -131,6 +162,8 @@ def test_probe_import_is_caught(source):
         "from django.contrib.auth import views",
         "from netatlas.system.services import get_system_status",
         "from . import views",
+        "from rest_framework import serializers\nserializers.Serializer",
+        "from rest_framework.views import APIView",
     ],
 )
 def test_legitimate_adapter_import_is_allowed(source):
