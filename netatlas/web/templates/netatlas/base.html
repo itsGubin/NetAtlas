@@ -9,12 +9,19 @@
 <body hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
   <header>
     <a href="{% url 'web:home' %}">NetAtlas</a>
+    {% if user.is_authenticated %}
     <nav aria-label="{% translate 'Main' %}">
       <ul>
         <li><a href="{% url 'web:home' %}">{% translate "Home" %}</a></li>
         <li><a href="{% url 'web:status' %}">{% translate "Status" %}</a></li>
+        {% if is_admin %}<li><a href="{% url 'web:users' %}">{% translate "Users" %}</a></li>{% endif %}
       </ul>
     </nav>
+    <form method="post" action="{% url 'web:logout' %}">
+      {% csrf_token %}
+      <button type="submit">{% translate "Log out" %}</button>
+    </form>
+    {% endif %}
   </header>
   <main>{% block content %}{% endblock %}</main>
 </body>

@@ -1,0 +1,21 @@
+{% load i18n %}{% get_current_language as LANGUAGE_CODE %}<!doctype html>
+{# Standalone: the shared base template reads the user, which needs the database. #}
+<html lang="{{ LANGUAGE_CODE }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% translate "Unavailable" %} · NetAtlas</title>
+</head>
+<body>
+  <main>
+    <h1>{% translate "NetAtlas is temporarily unavailable" %}</h1>
+    <p>{% translate "The database cannot be reached. Try again in a moment." %}</p>
+    <dl>
+      <dt>{% translate "Version" %}</dt>
+      <dd>{{ version }}</dd>
+      <dt>{% translate "Database" %}</dt>
+      <dd data-database-state="down">{% translate "Unreachable" %}</dd>
+    </dl>
+  </main>
+</body>
+</html>

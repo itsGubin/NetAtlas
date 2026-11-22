@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from typing import Literal
 
-from django.db import DatabaseError, connection
+from django.db import DatabaseError, InterfaceError, OperationalError, connection
 
 from netatlas import __version__
 
@@ -22,6 +22,11 @@ class SystemStatus:
 
 def get_system_status() -> SystemStatus:
     return SystemStatus(version=__version__, database=_database_state())
+
+
+def is_database_outage(error: Exception) -> bool:
+    """Whether `error` means the database could not be reached, rather than a bug in a query."""
+    return isinstance(error, (OperationalError, InterfaceError))
 
 
 def _database_state() -> DatabaseState:
