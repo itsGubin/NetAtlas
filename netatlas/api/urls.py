@@ -8,6 +8,7 @@ app_name = "api"
 urlpatterns = [
     path("schema/", SpectacularJSONAPIView.as_view(), name="schema"),
     path("status/", views.StatusView.as_view(), name="status"),
+    path("search/", views.SearchView.as_view(), name="search"),
     path("users/", views.UserListView.as_view(), name="user-list"),
     path("users/<int:user_id>/", views.UserDetailView.as_view(), name="user-detail"),
     path("tokens/", views.TokenListView.as_view(), name="token-list"),

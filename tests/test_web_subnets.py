@@ -47,7 +47,7 @@ def test_viewer_sees_subnets_without_forms_and_cannot_write(client_with_role):
     for path in ("/subnets/", f"/subnets/{subnet.id}/"):
         response = client.get(path)
         assert response.status_code == 200
-        assert response.content.decode().count("<form") == 1
+        assert response.content.decode().count('method="post"') == 1
 
     assert client.post("/subnets/", new).status_code == 403
     assert client.post(f"/subnets/{subnet.id}/", new).status_code == 403

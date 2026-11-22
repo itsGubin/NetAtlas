@@ -178,7 +178,7 @@ def test_viewer_sees_cables_without_forms_and_cannot_write(client_with_role):
     for path in ("/cables/", f"/cables/{cable.id}/", f"/interfaces/{near.id}/trace/"):
         response = client.get(path)
         assert response.status_code == 200
-        assert response.content.decode().count("<form") == 1
+        assert response.content.decode().count('method="post"') == 1
 
     assert client.post(f"/interfaces/{spare.id}/cable/", {"peer_id": far.id}).status_code == 403
     assert client.post(f"/cables/{cable.id}/", {"label": "x"}).status_code == 403

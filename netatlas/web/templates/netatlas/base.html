@@ -30,6 +30,10 @@
         {% if is_admin %}<li><a href="{% url 'web:users' %}">{% translate "Users" %}</a></li>{% endif %}
       </ul>
     </nav>
+    <form method="get" action="{% url 'web:search' %}" role="search">
+      <label>{% translate "Search" %} <input type="search" name="q" maxlength="200" value="{{ request.GET.q }}"></label>
+      <button type="submit">{% translate "Go" %}</button>
+    </form>
     <form method="post" action="{% url 'web:logout' %}">
       {% csrf_token %}
       <button type="submit">{% translate "Log out" %}</button>

@@ -55,7 +55,7 @@ def test_viewer_sees_racks_without_forms_and_cannot_write(client_with_role):
     for path in ("/racks/", f"/racks/{rack.id}/", f"/devices/{device.id}/"):
         response = client.get(path)
         assert response.status_code == 200
-        assert response.content.decode().count("<form") == 1
+        assert response.content.decode().count('method="post"') == 1
 
     position = {"rack_id": rack.id, "unit": "1", "face": "front"}
     assert client.post("/racks/", {"name": "x", "site_id": site.id}).status_code == 403

@@ -63,7 +63,7 @@ def test_viewer_sees_items_without_forms_and_cannot_write(client_with_role):
         response = client.get(path)
         assert response.status_code == 200
         assert 'method="post" action="/logout/"' in response.content.decode()
-        assert response.content.decode().count("<form") == 1
+        assert response.content.decode().count('method="post"') == 1
 
     assert client.post("/sites/", {"name": "Office"}).status_code == 403
     assert client.post(f"/sites/{site.id}/", {"name": "Office"}).status_code == 403

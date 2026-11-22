@@ -65,7 +65,7 @@ def test_viewer_sees_vlans_without_forms_and_cannot_write(client_with_role):
     for path in ("/vlans/", f"/vlans/{vlan.id}/", f"/interfaces/{port.id}/"):
         response = client.get(path)
         assert response.status_code == 200
-        assert response.content.decode().count("<form") == 1
+        assert response.content.decode().count('method="post"') == 1
 
     assert client.post("/vlans/", {"number": "20", "site_id": site.id}).status_code == 403
     assert client.post(f"/vlans/{vlan.id}/", {"number": "20"}).status_code == 403

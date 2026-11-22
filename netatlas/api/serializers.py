@@ -594,6 +594,26 @@ class PageChangeSerializer(serializers.Serializer):
     )
 
 
+class SearchHitSerializer(serializers.Serializer):
+    kind = serializers.CharField()
+    id = serializers.IntegerField()
+    label = serializers.CharField()
+    detail = serializers.CharField(allow_blank=True, help_text="Where the item is.")
+    excerpt = serializers.CharField(allow_blank=True, help_text="The matching Page text.")
+
+
+class SearchGroupSerializer(serializers.Serializer):
+    kind = serializers.CharField()
+    count = serializers.IntegerField(help_text="Every match of this kind.")
+    hits = SearchHitSerializer(many=True, help_text="The best 20.")
+
+
+class SearchResultsSerializer(serializers.Serializer):
+    query = serializers.CharField(allow_blank=True)
+    total = serializers.IntegerField()
+    groups = SearchGroupSerializer(many=True)
+
+
 class AttachmentSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     page_id = serializers.IntegerField()

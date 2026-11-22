@@ -185,6 +185,16 @@ Every Role can read and download attachments. Admins and Editors can upload and 
 - Removing a section deletes its content from every Page using the template, recoverable only from History. `POST /api/page-templates/<id>/preview/` with the new `body` lists `name` and `page_count` for each section with content. `PATCH` returns `409` with code `confirmation_required` unless `confirmed_removals` holds exactly those counts, such as `{"Notes": 3}`.
 - An Item Page is written with `PATCH /api/pages/<id>/` and `sections`, such as `{"sections": {"Notes": "text"}}`. `body` is accepted only while its template is a single Free-text Section.
 
+## Search
+
+`GET /api/search/` finds Devices, Interfaces, IP Addresses, Subnets, VLANs, Sites, Racks, Customers and Page text, for any Role.
+
+- `q` holds words, and a result matches all of them. Names match anywhere, so `sw` finds `core-sw`. Page text uses Postgres full-text search and matches words from their start.
+- A `q` that is an IP Address finds that address and every Subnet containing it, most specific first. A CIDR finds the Subnets overlapping it and the addresses inside it.
+- `tag` can be repeated and requires every Tag. `site` limits results to one Site. A Standalone Page has no Site, so `site` leaves it out.
+- `tag` or `site` without `q` lists everything they match.
+- Results are grouped by `kind`. Each group has the full `count` and up to 20 `hits`, so this endpoint is not paginated.
+
 ## Delete preview
 
 `GET /api/delete-preview/<kind>/<id>/` shows what deleting an item would do, without changing anything. It requires the Admin or Editor Role. `kind` is `customer`, `site`, `device`, `interface`, `rack`, `vlan`, `subnet`, `dhcp-range`, `ip-address`, `cable`, `device-type`, `tag`, `page`, `page-template` or `attachment`.

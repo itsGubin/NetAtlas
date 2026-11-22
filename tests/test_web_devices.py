@@ -95,7 +95,7 @@ def test_viewer_sees_devices_without_forms_and_cannot_write(client_with_role):
     for path in ("/devices/", f"/devices/{device.id}/"):
         response = client.get(path)
         assert response.status_code == 200
-        assert response.content.decode().count("<form") == 1
+        assert response.content.decode().count('method="post"') == 1
 
     new = {"name": "x", "kind": "physical", "site_id": site.id}
     assert client.post("/devices/", new).status_code == 403

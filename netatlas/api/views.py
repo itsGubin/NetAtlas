@@ -66,6 +66,7 @@ from netatlas.api.serializers import (
     PageTemplatePreviewSerializer,
     PageTemplateSerializer,
     RemovedSectionSerializer,
+    SearchResultsSerializer,
     PageCreateSerializer,
     PageSerializer,
     PageSummarySerializer,
@@ -197,6 +198,7 @@ from netatlas.pages.services import (
     referenced_by,
     update_page,
 )
+from netatlas.search.services import search
 from netatlas.places.services import (
     create_customer,
     create_site,
@@ -1091,6 +1093,33 @@ class PageDetailView(APIView):
     def delete(self, request, page_id):
         delete_page(request.user, page_id)
         return Response(status=http_status.HTTP_204_NO_CONTENT)
+
+
+class SearchView(APIView):
+    @extend_schema(
+        operation_id="search",
+        description="Finds items and Page text, grouped by kind, with up to 20 hits per kind.",
+        parameters=[
+            OpenApiParameter("q", str, description="Words, an IP Address or a CIDR."),
+            OpenApiParameter("tag", str, many=True, description="Must carry every given Tag."),
+            OpenApiParameter("site", int, description="Only this Site."),
+        ],
+        responses={200: SearchResultsSerializer, **errors(400, 401, 403)},
+    )
+    def get(self, request):
+        unknown = set(request.query_params) - {"q", "tag", "site"}
+        if unknown:
+            raise ApiValidationError({name: [_("Unknown filter.")] for name in sorted(unknown)})
+        site = request.query_params.get("site")
+        if site is not None and not (site.isascii() and site.isdecimal() and len(site) <= 18):
+            raise ApiValidationError({"site": [_("Choose an existing Site.")]})
+        results = search(
+            request.user,
+            request.query_params.get("q", ""),
+            request.query_params.getlist("tag"),
+            int(site) if site is not None else None,
+        )
+        return Response(asdict(results))
 
 
 class AnyAcceptNegotiation(BaseContentNegotiation):

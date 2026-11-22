@@ -113,6 +113,7 @@ from netatlas.places.services import (
     update_customer,
     update_site,
 )
+from netatlas.search.services import search
 from netatlas.system.services import get_system_status
 from netatlas.tagging.services import (
     add_tag,
@@ -1251,6 +1252,58 @@ def _render_page_edit(request, page_id, errors=(), title=None, body=None, sectio
         "errors": errors,
     }
     return render(request, "netatlas/page_edit.html", context, status=400 if errors else 200)
+
+
+def search_page(request):
+    query = request.GET.get("q", "")
+    chosen_tags = [name for name in request.GET.getlist("tag") if name.strip()]
+    site = request.GET.get("site", "")
+    searched = bool(query.strip() or chosen_tags or site)
+    errors = []
+    results = None
+    site_id = None
+    try:
+        if site:
+            if not (site.isascii() and site.isdecimal() and len(site) <= 18):
+                raise ValidationError(_("Choose an existing Site."))
+            site_id = int(site)
+        results = search(request.user, query, chosen_tags, site_id)
+    except ValidationError as error:
+        errors = error.messages
+
+    names = _kind_names()
+    groups = [
+        {
+            "name": names[group.kind],
+            "count": group.count,
+            "more": group.count > len(group.hits),
+            "hits": [
+                {
+                    "label": hit.label,
+                    "detail": hit.detail,
+                    "excerpt": hit.excerpt,
+                    "url": reverse(f"web:{hit.kind}", args=[hit.id]),
+                }
+                for hit in group.hits
+            ],
+        }
+        for group in (results.groups if results else [])
+    ]
+    keys = {name.strip().casefold() for name in chosen_tags}
+    context = {
+        "query": query,
+        "searched": searched,
+        "results": results,
+        "groups": groups,
+        "errors": errors,
+        "sites": list_sites(request.user),
+        "selected_site": site_id,
+        "tags": [
+            {"name": tag.name, "selected": tag.name.casefold() in keys}
+            for tag in list_tags(request.user)
+        ],
+    }
+    return render(request, "netatlas/search.html", context, status=400 if errors else 200)
 
 
 @require_http_methods(["GET", "POST"])
