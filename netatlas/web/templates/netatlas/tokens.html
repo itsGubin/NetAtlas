@@ -1,0 +1,61 @@
+{% extends "netatlas/base.html" %}{% load i18n %}
+{% block title %}{% translate "API tokens" %} · {{ block.super }}{% endblock %}
+{% block content %}
+<h1>{% translate "API tokens" %}</h1>
+{% if errors %}
+<ul role="alert">
+  {% for error in errors %}<li>{{ error }}</li>{% endfor %}
+</ul>
+{% endif %}
+{% if secret %}
+<section role="status">
+  <h2>{% translate "Copy your new token now" %}</h2>
+  <p>{% translate "It is shown only once. NetAtlas stores just a hash of it." %}</p>
+  <code data-token-secret="{{ secret }}">{{ secret }}</code>
+</section>
+{% endif %}
+
+<table>
+  <thead>
+    <tr>
+      {% if show_owner %}<th scope="col">{% translate "User" %}</th>{% endif %}
+      <th scope="col">{% translate "Name" %}</th>
+      <th scope="col">{% translate "Starts with" %}</th>
+      <th scope="col">{% translate "Created" %}</th>
+      <th scope="col">{% translate "Expires" %}</th>
+      <th scope="col">{% translate "Status" %}</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for token in tokens %}
+    <tr>
+      {% if show_owner %}<td>{{ token.username }}</td>{% endif %}
+      <td>{{ token.name }}</td>
+      <td><code>{{ token.prefix }}</code></td>
+      <td>{{ token.created_at }}</td>
+      <td>{% if token.expires_at %}{{ token.expires_at }}{% else %}{% translate "Never" %}{% endif %}</td>
+      <td>
+        {% if token.revoked_at %}
+          {% translate "Revoked" %}
+        {% else %}
+        <form method="post" action="{% url 'web:token-revoke' token.id %}">
+          {% csrf_token %}
+          <button type="submit">{% translate "Revoke" %}</button>
+        </form>
+        {% endif %}
+      </td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="{% if show_owner %}6{% else %}5{% endif %}">{% translate "No tokens yet." %}</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<h2>{% translate "Create token" %}</h2>
+<form method="post" action="{% url 'web:tokens' %}">
+  {% csrf_token %}
+  <p><label>{% translate "Name" %} <input name="name" value="{{ name }}" maxlength="100" required></label></p>
+  <p><label>{% translate "Expires (optional, UTC)" %} <input type="datetime-local" name="expires_at"></label></p>
+  <button type="submit">{% translate "Create token" %}</button>
+</form>
+{% endblock %}

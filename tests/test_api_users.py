@@ -25,7 +25,7 @@ def patch_json(client, path, data):
 def test_anonymous_requests_are_refused_without_a_redirect(client, method, path):
     response = getattr(client, method)(path, {}, content_type="application/json")
 
-    assert response.status_code == 403
+    assert response.status_code == 401
 
 
 @pytest.mark.parametrize("role", NON_ADMINS)
@@ -44,8 +44,8 @@ def test_admin_lists_users_without_exposing_passwords(client_with_role):
     response = client.get("/api/users/")
 
     assert response.status_code == 200
-    assert [(u["username"], u["role"]) for u in response.json()] == [("root", "admin")]
-    assert set(response.json()[0]) == {"id", "username", "role"}
+    assert [(u["username"], u["role"]) for u in response.json()["results"]] == [("root", "admin")]
+    assert set(response.json()["results"][0]) == {"id", "username", "role"}
 
 
 def test_admin_creates_a_user(client_with_role):
@@ -74,7 +74,7 @@ def test_invalid_new_user_gets_field_errors(client_with_role, change, field):
     response = post_json(client, "/api/users/", {**NEW_USER, **change})
 
     assert response.status_code == 400
-    assert field in response.json()
+    assert field in response.json()["error"]["fields"]
 
 
 @pytest.mark.parametrize("missing", ["username", "password", "role"])
@@ -85,7 +85,7 @@ def test_incomplete_new_user_gets_a_field_error(client_with_role, missing):
     response = post_json(client, "/api/users/", body)
 
     assert response.status_code == 400
-    assert missing in response.json()
+    assert missing in response.json()["error"]["fields"]
 
 
 def test_admin_changes_a_role(client_with_role):
@@ -101,12 +101,12 @@ def test_admin_changes_a_role(client_with_role):
 
 def test_last_admin_cannot_be_demoted(client_with_role):
     client = client_with_role(Role.ADMIN)
-    root_id = client.get("/api/users/").json()[0]["id"]
+    root_id = client.get("/api/users/").json()["results"][0]["id"]
 
     response = patch_json(client, f"/api/users/{root_id}/", {"role": "viewer"})
 
     assert response.status_code == 400
-    assert "role" in response.json()
+    assert "role" in response.json()["error"]["fields"]
 
 
 def test_changing_an_unknown_user_is_not_found(client_with_role):
