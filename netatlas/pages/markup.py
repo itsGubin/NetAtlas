@@ -18,6 +18,7 @@ _STORED = re.compile(r"@\[([a-z-]+):(\d{1,18})\]")
 _EDITOR = re.compile(r"@\[[^\]\n]*\]\(([a-z-]+):(\d{1,18})\)")
 _LIVE_STORED = re.compile(r"@\{([a-z-]+):(\d{1,18})\.([a-z-]+)\}")
 _LIVE_EDITOR = re.compile(r"@\{[^}\n]*\}\(([a-z-]+):(\d{1,18})\.([a-z-]+)\)")
+_ATTACHMENT = re.compile(r"attachment:(\d{1,18})")
 
 
 def _mention_rule(state, silent):
@@ -56,12 +57,23 @@ def _render_live_field(_renderer, tokens, index, _options, env):
     return env["live_field"](meta["kind"], meta["id"], meta["field"])
 
 
+def _render_image(renderer, tokens, index, options, env):
+    """`![text](attachment:12)` shows that attachment. Any other image renders as usual."""
+    token = tokens[index]
+    match = _ATTACHMENT.fullmatch(str(token.attrGet("src") or ""))
+    if match is None:
+        return renderer.image(tokens, index, options, env)
+    text = renderer.renderInlineAsText(token.children or [], options, env)
+    return env["attachment"](int(match[1]), text)
+
+
 # Raw HTML stays disabled: Page text is user input and is rendered into the app.
 _markdown = MarkdownIt("commonmark", {"html": False}).enable(["table", "strikethrough"])
 _markdown.inline.ruler.before("link", "mention", _mention_rule)
 _markdown.inline.ruler.before("link", "live_field", _live_field_rule)
 _markdown.add_render_rule("mention", _render_mention)
 _markdown.add_render_rule("live_field", _render_live_field)
+_markdown.add_render_rule("image", _render_image)
 
 
 def _inline_tokens(body: str, kind: str):
@@ -87,13 +99,24 @@ def live_fields_in(body: str) -> set[tuple[str, int, str]]:
     }
 
 
+def attachments_in(body: str) -> set[int]:
+    """The attachments a body embeds. Text in code spans and code blocks embeds nothing."""
+    matches = (
+        _ATTACHMENT.fullmatch(str(token.attrGet("src") or ""))
+        for token in _inline_tokens(body, "image")
+    )
+    return {int(match[1]) for match in matches if match}
+
+
 def render(
     body: str,
     mention: Callable[[str, int], str],
     live_field: Callable[[str, int, str], str],
+    attachment: Callable[[int, str], str],
 ) -> str:
     """The body as safe HTML. The callables return the HTML of one reference."""
-    return _markdown.render(body, {"mention": mention, "live_field": live_field})
+    env = {"mention": mention, "live_field": live_field, "attachment": attachment}
+    return _markdown.render(body, env)
 
 
 def to_stored(body: str) -> str:

@@ -96,6 +96,12 @@ STATIC_URL = "static/"
 STATIC_ROOT = env("NETATLAS_STATIC_ROOT", str(BASE_DIR / "staticfiles"))
 MEDIA_URL = "media/"
 MEDIA_ROOT = env("NETATLAS_MEDIA_ROOT", str(BASE_DIR / "media"))
+MAX_ATTACHMENT_BYTES = int(os.environ.get("NETATLAS_MAX_ATTACHMENT_MB") or 25) * 1024 * 1024
+FILE_UPLOAD_HANDLERS = [
+    "netatlas.config.uploads.SizeLimitUploadHandler",
+    "django.core.files.uploadhandler.MemoryFileUploadHandler",
+    "django.core.files.uploadhandler.TemporaryFileUploadHandler",
+]
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 

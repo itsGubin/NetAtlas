@@ -85,6 +85,7 @@ def test_every_kind_of_documented_item_can_be_previewed():
         "tag",
         "page",
         "page-template",
+        "attachment",
     }
 
 

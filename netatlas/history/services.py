@@ -13,6 +13,7 @@ from typing import Any
 
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import transaction
+from django.db.models import Q
 from django.db.models.deletion import Collector
 from django.http import Http404
 
@@ -167,6 +168,19 @@ def item_history(actor, kind: str, item_id: int) -> list[HistoryEntry]:
     if not entries:
         raise Http404
     return entries
+
+
+def child_history(actor, kind: str, parent_field: str, parent_id: int) -> list[HistoryEntry]:
+    """The History of every item of `kind` that belongs or belonged to a parent, newest first."""
+    require_role(actor)
+    rows = FieldChange.objects.filter(change__item_kind=kind, field=parent_field)
+    children = rows.filter(Q(new=parent_id) | Q(old=parent_id)).values("change__item_id")
+    changes = (
+        Change.objects.filter(item_kind=kind, item_id__in=children)
+        .prefetch_related("field_changes")
+        .order_by("-at", "-pk")
+    )
+    return [_entry(change) for change in changes]
 
 
 def _removed_with(item) -> list:

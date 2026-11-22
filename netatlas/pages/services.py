@@ -21,6 +21,7 @@ from netatlas.pages.live_fields import LIVE_FIELDS, field_label, read_value
 from netatlas.pages.models import (
     ITEM_PAGE_MODELS,
     MENTIONABLE_MODELS,
+    Attachment,
     Mention,
     Page,
     PageTemplate,
@@ -127,6 +128,16 @@ class BrokenLiveField:
     field_label: str
 
 
+@dataclass(frozen=True)
+class BrokenEmbed:
+    """An embedded attachment that a delete would break."""
+
+    page_id: int
+    page_title: str
+    attachment_id: int
+    attachment_label: str
+
+
 def list_pages(actor) -> list[PageSummary]:
     """Every Page, by name."""
     require_role(actor)
@@ -224,7 +235,19 @@ def render_page(actor, page_id: int, link: Callable[[str, int], str]) -> str:
             '<span class="live-field">{}</span>', ", ".join(values) if values else "—"
         )
 
-    return markup.render(body, mention, live_field)
+    embedded = Attachment.objects.filter(pk__in=markup.attachments_in(body))
+    attachments = {attachment.pk: attachment for attachment in embedded}
+
+    def attachment(attachment_id, text):
+        found = attachments.get(attachment_id)
+        if found is None:
+            return format_html('<mark class="broken-attachment">{}</mark>', _("deleted attachment"))
+        url = link("attachment", attachment_id)
+        if found.is_image:
+            return format_html('<img src="{}" alt="{}">', url, text)
+        return format_html('<a href="{}">{}</a>', url, text or found.filename)
+
+    return markup.render(body, mention, live_field, attachment)
 
 
 def editor_body(actor, page_id: int) -> str:
@@ -321,6 +344,23 @@ def broken_live_fields(deleted: Iterable[tuple[str, int, str]]) -> list[BrokenLi
         if (kind, item_id) in labels
     ]
     return sorted(broken, key=lambda b: (b.page_id, b.kind, b.item_id, b.field))
+
+
+def broken_embeds(deleted: Iterable[tuple[str, int, str]]) -> list[BrokenEmbed]:
+    """The embeds on remaining Pages that show the given (kind, id, label) attachments."""
+    labels = {item_id: label for kind, item_id, label in deleted if kind == "attachment"}
+    if not labels:
+        return []
+    matching = Q()
+    for attachment_id in labels:
+        matching |= Q(body__contains=f"attachment:{attachment_id}")
+    broken = [
+        BrokenEmbed(page.pk, str(page), attachment_id, labels[attachment_id])
+        for page in Page.objects.filter(matching)
+        for attachment_id in markup.attachments_in(page.body)
+        if attachment_id in labels
+    ]
+    return sorted(broken, key=lambda b: (b.page_id, b.attachment_id))
 
 
 def referenced_by(actor, kind: str, item_id: int) -> list[PageSummary]:
