@@ -185,6 +185,26 @@ Every Role can read and download attachments. Admins and Editors can upload and 
 - Removing a section deletes its content from every Page using the template, recoverable only from History. `POST /api/page-templates/<id>/preview/` with the new `body` lists `name` and `page_count` for each section with content. `PATCH` returns `409` with code `confirmation_required` unless `confirmed_removals` holds exactly those counts, such as `{"Notes": 3}`.
 - An Item Page is written with `PATCH /api/pages/<id>/` and `sections`, such as `{"sections": {"Notes": "text"}}`. `body` is accepted only while its template is a single Free-text Section.
 
+## CSV import
+
+`POST /api/imports/preview/` checks a CSV file and `POST /api/imports/` imports it. Both need the Admin or Editor Role and take JSON with `kind`, `csv` and optionally `mapping`.
+
+- `kind` is `device`, `interface`, `subnet`, `ip-address` or `vlan`. An import only creates items and never changes existing ones.
+- `csv` is the file's text, with column names in the first row. Comma, semicolon and tab separated files work, up to 1 MB and 1000 rows.
+- `mapping` names each field's column, such as `{"name": "Hostname", "site": "Location"}`. Without it, columns are matched by name.
+- Rows refer to other items by name: a Site by name, a Device by name within its Site, an Interface by name on its Device, and a VLAN by number within its Site. Several Sites with one name make the row invalid.
+- A Hypervisor or LAG may appear anywhere in the same file.
+- The preview runs the real import and rolls it back, and returns each row's `errors`. Row numbers match a spreadsheet, with the header as row 1.
+- An import writes every row or none. If any row is invalid it returns `409` with code `import_failed` and the same `preview`. Imported items appear in History.
+
+| `kind` | Required | Optional |
+| --- | --- | --- |
+| `device` | `name`, `site` | `kind`, `hypervisor`, `device_type`, `rack_height` |
+| `interface` | `device`, `site`, `name` | `kind`, `lag` |
+| `subnet` | `cidr`, `site` | `vlan` |
+| `ip-address` | `address`, `site` | `device`, `interface`, `description` |
+| `vlan` | `number`, `site` | `name` |
+
 ## Search
 
 `GET /api/search/` finds Devices, Interfaces, IP Addresses, Subnets, VLANs, Sites, Racks, Customers and Page text, for any Role.

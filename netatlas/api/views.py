@@ -65,6 +65,8 @@ from netatlas.api.serializers import (
     PageTemplateCreateSerializer,
     PageTemplatePreviewSerializer,
     PageTemplateSerializer,
+    ImportRequestSerializer,
+    ImportResultSerializer,
     RemovedSectionSerializer,
     SearchResultsSerializer,
     PageCreateSerializer,
@@ -172,6 +174,7 @@ from netatlas.devices.services import (
     virtual_devices,
 )
 from netatlas.history.services import item_history
+from netatlas.imports.services import ImportFailed, preview_import, run_import
 from netatlas.pages.attachments import (
     add_attachment,
     attachment_response,
@@ -1093,6 +1096,48 @@ class PageDetailView(APIView):
     def delete(self, request, page_id):
         delete_page(request.user, page_id)
         return Response(status=http_status.HTTP_204_NO_CONTENT)
+
+
+class ImportPreviewView(APIView):
+    @extend_schema(
+        operation_id="import_preview",
+        description="Checks every row with the real rules. Nothing is written.",
+        request=ImportRequestSerializer,
+        responses={200: ImportResultSerializer, **errors(400, 401, 403)},
+    )
+    def post(self, request):
+        require_editor(request.user)
+        body = ImportRequestSerializer(data=request.data)
+        body.is_valid(raise_exception=True)
+        return Response(asdict(preview_import(request.user, **_import_arguments(body))))
+
+
+class ImportView(APIView):
+    @extend_schema(
+        operation_id="import_create",
+        description="Creates every row. If any row is invalid, returns `409` and writes nothing.",
+        request=ImportRequestSerializer,
+        responses={201: ImportResultSerializer, **errors(400, 401, 403, 409)},
+    )
+    def post(self, request):
+        require_editor(request.user)
+        body = ImportRequestSerializer(data=request.data)
+        body.is_valid(raise_exception=True)
+        try:
+            result = run_import(request.user, **_import_arguments(body))
+        except ImportFailed as failed:
+            message = _("Some rows are invalid, so nothing was imported.")
+            envelope = {"code": "import_failed", "message": message, "fields": {}}
+            return Response(
+                {"error": envelope, "preview": asdict(failed.preview)},
+                status=http_status.HTTP_409_CONFLICT,
+            )
+        return Response(asdict(result), status=http_status.HTTP_201_CREATED)
+
+
+def _import_arguments(body) -> dict:
+    data = body.validated_data
+    return {"kind": data["kind"], "text": data["csv"], "mapping": data.get("mapping")}
 
 
 class SearchView(APIView):

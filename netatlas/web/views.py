@@ -8,6 +8,7 @@ from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils.cache import patch_cache_control
 from django.utils.translation import gettext as _
+from django.utils.translation import ngettext
 from django.views.decorators.http import require_http_methods, require_POST
 
 from netatlas.accounts.roles import Role
@@ -82,6 +83,16 @@ from netatlas.devices.services import (
     virtual_devices,
 )
 from netatlas.history.services import child_history, item_history
+from netatlas.imports.services import (
+    IMPORT_KINDS,
+    MAX_ROWS,
+    ImportFailed,
+    import_fields,
+    inspect_csv,
+    preview_import,
+    read_upload,
+    run_import,
+)
 from netatlas.pages.attachments import (
     add_attachment,
     attachment_response,
@@ -1252,6 +1263,123 @@ def _render_page_edit(request, page_id, errors=(), title=None, body=None, sectio
         "errors": errors,
     }
     return render(request, "netatlas/page_edit.html", context, status=400 if errors else 200)
+
+
+MAX_PREVIEW_ROWS = 50
+
+
+@require_http_methods(["GET", "POST"])
+def imports(request):
+    """Upload a CSV file, match its columns, preview it, then import it."""
+    require_editor(request.user)
+    if request.method == "GET":
+        return _render_import_upload(request)
+
+    step = request.POST.get("step")
+    kind = request.POST.get("kind", "")
+    if step == "upload":
+        try:
+            text = read_upload(request.FILES.get("file"))
+            columns = inspect_csv(request.user, kind, text)
+        except ValidationError as error:
+            return _render_import_upload(request, kind, error.messages)
+        return _render_import_map(request, kind, text, columns, columns.mapping)
+
+    text = request.POST.get("csv", "")
+    try:
+        columns = inspect_csv(request.user, kind, text)
+    except ValidationError as error:
+        return _render_import_upload(request, kind, error.messages)
+    prefix = "map_"
+    mapping = {
+        key.removeprefix(prefix): value
+        for key, value in request.POST.items()
+        if key.startswith(prefix) and value
+    }
+    try:
+        if step == "preview":
+            result = preview_import(request.user, kind, text, mapping)
+            return _render_import_preview(request, kind, text, mapping, result)
+        if step == "import":
+            result = run_import(request.user, kind, text, mapping)
+            names = _kind_names()
+            messages.success(
+                request,
+                ngettext(
+                    "Imported %(count)d row: %(kind)s.",
+                    "Imported %(count)d rows: %(kind)s.",
+                    result.total,
+                )
+                % {"count": result.total, "kind": names[kind]},
+            )
+            return redirect("web:imports")
+    except ImportFailed as failed:
+        return _render_import_preview(request, kind, text, mapping, failed.preview, status=409)
+    except ValidationError as error:
+        return _render_import_map(request, kind, text, columns, mapping, error.messages)
+    return _render_import_upload(request, kind, [_("Upload a CSV file to start.")])
+
+
+def _render_import_upload(request, kind="", errors=()):
+    names = _kind_names()
+    context = {
+        "step": "upload",
+        "kind": kind,
+        "kinds": [{"value": value, "label": names[value]} for value in IMPORT_KINDS],
+        "max_rows": MAX_ROWS,
+        "errors": errors,
+    }
+    return render(request, "netatlas/imports.html", context, status=400 if errors else 200)
+
+
+def _render_import_map(request, kind, text, columns, mapping, errors=()):
+    context = {
+        "step": "map",
+        "kind": kind,
+        "kind_name": _kind_names()[kind],
+        "csv": text,
+        "columns": columns,
+        "fields": [
+            {
+                "name": field.name,
+                "label": field.label,
+                "required": field.required,
+                "selected": mapping.get(field.name, ""),
+            }
+            for field in import_fields(kind)
+        ],
+        "errors": errors,
+    }
+    return render(request, "netatlas/imports.html", context, status=400 if errors else 200)
+
+
+def _render_import_preview(request, kind, text, mapping, result, status=200):
+    fields = [field for field in import_fields(kind) if field.name in mapping]
+    invalid = [row for row in result.rows if row.errors]
+    valid = [row for row in result.rows if not row.errors]
+    # Every error is shown, because each one has to be fixed.
+    room = max(MAX_PREVIEW_ROWS - len(invalid), 0)
+    chosen = sorted([*invalid, *valid[:room]], key=lambda row: row.number)
+    context = {
+        "step": "preview",
+        "kind": kind,
+        "kind_name": _kind_names()[kind],
+        "csv": text,
+        "mapping": mapping,
+        "preview": result,
+        "invalid": len(invalid),
+        "fields": [{"name": field.name, "label": field.label} for field in fields],
+        "shown_rows": [
+            {
+                "number": row.number,
+                "cells": [row.values[field.name] for field in fields],
+                "errors": row.errors,
+            }
+            for row in chosen
+        ],
+        "hidden_rows": max(len(valid) - room, 0),
+    }
+    return render(request, "netatlas/imports.html", context, status=status)
 
 
 def search_page(request):

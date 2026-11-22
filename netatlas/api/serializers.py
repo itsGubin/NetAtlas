@@ -594,6 +594,30 @@ class PageChangeSerializer(serializers.Serializer):
     )
 
 
+class ImportRequestSerializer(serializers.Serializer):
+    kind = serializers.ChoiceField(choices=["device", "interface", "subnet", "ip-address", "vlan"])
+    csv = serializers.CharField(trim_whitespace=False, help_text="The file's text, with a header.")
+    mapping = serializers.DictField(
+        required=False,
+        child=serializers.CharField(),
+        help_text="Each field's column. Without it, columns are matched by name.",
+    )
+
+
+class ImportRowSerializer(serializers.Serializer):
+    number = serializers.IntegerField(help_text="As a spreadsheet numbers it. The header is 1.")
+    values = serializers.DictField(child=serializers.CharField(allow_blank=True))
+    label = serializers.CharField(allow_blank=True)
+    errors = serializers.ListField(child=serializers.CharField())
+
+
+class ImportResultSerializer(serializers.Serializer):
+    kind = serializers.CharField()
+    total = serializers.IntegerField()
+    valid = serializers.IntegerField()
+    rows = ImportRowSerializer(many=True)
+
+
 class SearchHitSerializer(serializers.Serializer):
     kind = serializers.CharField()
     id = serializers.IntegerField()
