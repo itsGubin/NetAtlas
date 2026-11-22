@@ -12,4 +12,5 @@ urlpatterns = [
     path("users/<int:user_id>/", views.UserDetailView.as_view(), name="user-detail"),
     path("tokens/", views.TokenListView.as_view(), name="token-list"),
     path("tokens/<int:token_id>/", views.TokenDetailView.as_view(), name="token-detail"),
+    path("history/<slug:kind>/<int:item_id>/", views.HistoryView.as_view(), name="history"),
 ]

@@ -17,6 +17,7 @@ from netatlas.accounts.services import (
     revoke_token,
     role_of,
 )
+from netatlas.history.services import item_history
 from netatlas.system.services import get_system_status
 
 
@@ -75,6 +76,12 @@ def tokens(request):
 def token_revoke(request, token_id):
     revoke_token(request.user, token_id)
     return redirect("web:tokens")
+
+
+def history(request, kind, item_id):
+    entries = item_history(request.user, kind, item_id)
+    context = {"entries": entries, "item_label": entries[0].item_label}
+    return render(request, "netatlas/history.html", context)
 
 
 def _render_tokens(request, errors=(), name="", secret=None):

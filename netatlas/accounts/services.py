@@ -242,3 +242,15 @@ def require_admin(actor) -> None:
     """Fails closed: anonymous users and users without a Role are refused."""
     if role_of(actor) != Role.ADMIN:
         raise PermissionDenied
+
+
+def require_editor(actor) -> None:
+    """Admins and Editors may change documented items. Viewers are read-only."""
+    if role_of(actor) not in (Role.ADMIN, Role.EDITOR):
+        raise PermissionDenied
+
+
+def require_role(actor) -> None:
+    """Any Role may read. Anonymous users and users without a Role may not."""
+    if role_of(actor) is None:
+        raise PermissionDenied

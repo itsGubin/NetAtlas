@@ -50,6 +50,16 @@ Every error has the same shape. `fields` lists messages per field and is empty f
 
 `/api/status/` keeps its own body on `503`, because health checks read it.
 
+## History
+
+`GET /api/history/<kind>/<id>/` lists an item's History, newest first, for any Role. Entries record who changed which field from what to what, and stay available after the item is deleted. History is read-only.
+
+## Adding a documented item
+
+- Inherit from `TrackedModel`, and set `history_kind` and any `history_exclude` fields.
+- Write it only through `create_item`, `update_item` and `delete_item` in `netatlas/history/services.py`. They enforce the Role and record History in the same transaction. Any other write raises `UntrackedWrite`.
+- Many-to-many fields are not recorded automatically. A slice that adds one must record its changes.
+
 ## Adding an endpoint
 
 - Call the service layer from an `APIView`, and describe the shapes with plain `Serializer` classes (ADR 0003). `tests/test_adapter_boundary.py` rejects model serializers, generic views and model viewsets.
