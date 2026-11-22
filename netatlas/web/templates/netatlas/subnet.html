@@ -1,0 +1,38 @@
+{% extends "netatlas/base.html" %}{% load i18n %}
+{% block title %}{{ subnet.cidr }} · {{ block.super }}{% endblock %}
+{% block content %}
+<h1>{{ subnet.cidr }}</h1>
+{% include "netatlas/_errors.html" %}
+<dl>
+  {% if sites|length > 1 %}<dt>{% translate "Site" %}</dt><dd><a href="{% url 'web:site' subnet.site_id %}">{{ subnet.site_name }}</a></dd>{% endif %}
+  <dt>{% translate "IP version" %}</dt><dd>IPv{{ subnet.version }}</dd>
+  {% if subnet.parent_id %}<dt>{% translate "Inside" %}</dt><dd><a href="{% url 'web:subnet' subnet.parent_id %}">{{ subnet.parent_cidr }}</a></dd>{% endif %}
+  <dt>{% translate "Utilisation" %}</dt><dd>{{ subnet.utilisation }} %</dd>
+</dl>
+
+{% if children %}
+<h2>{% translate "Nested Subnets" %}</h2>
+<ul>
+  {% for child in children %}
+  <li><a href="{% url 'web:subnet' child.id %}">{{ child.cidr }}</a> · {{ child.utilisation }} %</li>
+  {% endfor %}
+</ul>
+{% endif %}
+
+{% if can_edit %}
+<h2>{% translate "Edit Subnet" %}</h2>
+<form method="post" action="{% url 'web:subnet' subnet.id %}">
+  {% csrf_token %}
+  <p><label>{% translate "CIDR" %} <input name="cidr" value="{{ form.cidr|default:'' }}" required></label></p>
+  {% include "netatlas/_site_select.html" %}
+  <button type="submit">{% translate "Save" %}</button>
+</form>
+<form method="post" action="{% url 'web:subnet-delete' subnet.id %}">
+  {% csrf_token %}
+  <button type="submit">{% translate "Delete Subnet" %}</button>
+</form>
+{% endif %}
+
+<h2>{% translate "History" %}</h2>
+{% include "netatlas/_history.html" %}
+{% endblock %}

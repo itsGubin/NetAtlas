@@ -317,6 +317,36 @@ class RackElevationSerializer(serializers.Serializer):
     zero_height = RackedDeviceSerializer(many=True)
 
 
+class SubnetSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    cidr = serializers.CharField()
+    version = serializers.IntegerField()
+    prefix_length = serializers.IntegerField()
+    site_id = serializers.IntegerField()
+    site_name = serializers.CharField()
+    parent_id = serializers.IntegerField(
+        allow_null=True, help_text="The most specific Subnet containing this one."
+    )
+    parent_cidr = serializers.CharField(allow_null=True)
+    depth = serializers.IntegerField(help_text="0 for a Subnet with no parent.")
+    utilisation = serializers.FloatField(help_text="Percent, rounded down to one decimal.")
+
+
+class NewSubnetSerializer(serializers.Serializer):
+    cidr = serializers.CharField(max_length=64)
+    site_id = serializers.IntegerField()
+
+
+class SubnetChangeSerializer(serializers.Serializer):
+    cidr = serializers.CharField(max_length=64, required=False)
+    site_id = serializers.IntegerField(required=False)
+
+
+class SubnetFilterSerializer(serializers.Serializer):
+    site = serializers.IntegerField(required=False)
+    version = serializers.ChoiceField(choices=[4, 6], required=False)
+
+
 class ErrorBodySerializer(serializers.Serializer):
     code = serializers.CharField()
     message = serializers.CharField()

@@ -64,6 +64,8 @@ urlpatterns = [
         views.RackElevationView.as_view(),
         name="rack-elevation",
     ),
+    path("subnets/", views.SubnetListView.as_view(), name="subnet-list"),
+    path("subnets/<int:subnet_id>/", views.SubnetDetailView.as_view(), name="subnet-detail"),
     path("cables/", views.CableListView.as_view(), name="cable-list"),
     path("cables/<int:cable_id>/", views.CableDetailView.as_view(), name="cable-detail"),
 ]

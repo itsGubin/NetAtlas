@@ -24,6 +24,13 @@ from netatlas.accounts.services import (
     revoke_token,
     summarize,
 )
+from netatlas.addressing.services import (
+    create_subnet,
+    delete_subnet,
+    get_subnet,
+    list_subnets,
+    update_subnet,
+)
 from netatlas.api.authentication import BearerTokenAuthentication
 from netatlas.api.conventions import allowed_filters, paginated
 from netatlas.api.serializers import (
@@ -50,6 +57,7 @@ from netatlas.api.serializers import (
     NewInterfaceSerializer,
     NewRackSerializer,
     NewSiteSerializer,
+    NewSubnetSerializer,
     NewTokenSerializer,
     NewUserSerializer,
     RackChangeSerializer,
@@ -61,6 +69,9 @@ from netatlas.api.serializers import (
     SiteFilterSerializer,
     SiteSerializer,
     StatusSerializer,
+    SubnetChangeSerializer,
+    SubnetFilterSerializer,
+    SubnetSerializer,
     TokenSerializer,
     UserSerializer,
     VirtualDeviceSerializer,
@@ -598,6 +609,64 @@ class RackElevationView(APIView):
     )
     def get(self, request, rack_id):
         return Response(asdict(rack_elevation(request.user, rack_id)))
+
+
+class SubnetListView(APIView):
+    @extend_schema(
+        operation_id="subnets_list",
+        description="In tree order: each Subnet is directly followed by those nested in it.",
+        parameters=[
+            *PAGINATION,
+            OpenApiParameter("site", int),
+            OpenApiParameter("version", int, enum=[4, 6]),
+        ],
+        responses={200: page_of(SubnetSerializer), **errors(400, 401, 403)},
+    )
+    def get(self, request):
+        require_role(request.user)
+        filters = SubnetFilterSerializer(data=allowed_filters(request, "site", "version"))
+        filters.is_valid(raise_exception=True)
+        values = filters.validated_data
+        subnets = list_subnets(
+            request.user, site_id=values.get("site"), version=values.get("version")
+        )
+        return paginated(request, self, subnets, asdict)
+
+    @extend_schema(
+        description="A CIDR with host bits set is refused. Unique within a Site.",
+        request=NewSubnetSerializer,
+        responses={201: SubnetSerializer, **errors(400, 401, 403)},
+    )
+    def post(self, request):
+        require_editor(request.user)
+        body = NewSubnetSerializer(data=request.data)
+        body.is_valid(raise_exception=True)
+        subnet = create_subnet(request.user, **body.validated_data)
+        return Response(asdict(subnet), status=http_status.HTTP_201_CREATED)
+
+
+class SubnetDetailView(APIView):
+    @extend_schema(responses={200: SubnetSerializer, **errors(401, 403, 404)})
+    def get(self, request, subnet_id):
+        return Response(asdict(get_subnet(request.user, subnet_id)))
+
+    @extend_schema(
+        request=SubnetChangeSerializer,
+        responses={200: SubnetSerializer, **errors(400, 401, 403, 404)},
+    )
+    def patch(self, request, subnet_id):
+        require_editor(request.user)
+        body = SubnetChangeSerializer(data=request.data)
+        body.is_valid(raise_exception=True)
+        return Response(asdict(update_subnet(request.user, subnet_id, **body.validated_data)))
+
+    @extend_schema(
+        description="Deletes this Subnet only. Those nested in it stay and move up the tree.",
+        responses={204: None, **errors(401, 403, 404)},
+    )
+    def delete(self, request, subnet_id):
+        delete_subnet(request.user, subnet_id)
+        return Response(status=http_status.HTTP_204_NO_CONTENT)
 
 
 class CableListView(APIView):
