@@ -1,0 +1,23 @@
+{% extends "netatlas/base.html" %}{% load i18n %}
+{% block title %}{{ site.name }} · {{ block.super }}{% endblock %}
+{% block content %}
+<h1>{{ site.name }}</h1>
+{% include "netatlas/_errors.html" %}
+{% if site.customer_id %}<p>{% translate "Customer" %}: <a href="{% url 'web:customer' site.customer_id %}">{{ site.customer_name }}</a></p>{% endif %}
+
+{% if can_edit %}
+<h2>{% translate "Edit Site" %}</h2>
+<form method="post" action="{% url 'web:site' site.id %}">
+  {% csrf_token %}
+  {% include "netatlas/_site_fields.html" %}
+  <button type="submit">{% translate "Save" %}</button>
+</form>
+<form method="post" action="{% url 'web:site-delete' site.id %}">
+  {% csrf_token %}
+  <button type="submit">{% translate "Delete Site" %}</button>
+</form>
+{% endif %}
+
+<h2>{% translate "History" %}</h2>
+{% include "netatlas/_history.html" %}
+{% endblock %}

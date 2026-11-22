@@ -1,0 +1,20 @@
+{% extends "netatlas/base.html" %}{% load i18n %}
+{% block title %}{% translate "Customers" %} · {{ block.super }}{% endblock %}
+{% block content %}
+<h1>{% translate "Customers" %}</h1>
+{% include "netatlas/_errors.html" %}
+<ul>
+  {% for customer in customers %}
+  <li><a href="{% url 'web:customer' customer.id %}">{{ customer.name }}</a></li>
+  {% endfor %}
+</ul>
+
+{% if can_edit %}
+<h2>{% translate "Add Customer" %}</h2>
+<form method="post" action="{% url 'web:customers' %}">
+  {% csrf_token %}
+  <p><label>{% translate "Name" %} <input name="name" value="{{ name }}" required></label></p>
+  <button type="submit">{% translate "Add Customer" %}</button>
+</form>
+{% endif %}
+{% endblock %}

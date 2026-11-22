@@ -1,0 +1,14 @@
+{% load i18n %}{# For forms of items that belong to a Site. Expects `sites` and optionally `selected_site`. #}
+{% if sites|length == 1 %}
+<input type="hidden" name="site_id" value="{{ sites.0.id }}">
+{% else %}
+<p>
+  <label>{% translate "Site" %}
+    <select name="site_id" required>
+      {% for site in sites %}
+      <option value="{{ site.id }}"{% if site.id == selected_site %} selected{% endif %}>{{ site.name }}</option>
+      {% endfor %}
+    </select>
+  </label>
+</p>
+{% endif %}

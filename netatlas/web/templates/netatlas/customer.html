@@ -1,0 +1,22 @@
+{% extends "netatlas/base.html" %}{% load i18n %}
+{% block title %}{{ customer.name }} · {{ block.super }}{% endblock %}
+{% block content %}
+<h1>{{ customer.name }}</h1>
+{% include "netatlas/_errors.html" %}
+
+{% if can_edit %}
+<h2>{% translate "Edit Customer" %}</h2>
+<form method="post" action="{% url 'web:customer' customer.id %}">
+  {% csrf_token %}
+  <p><label>{% translate "Name" %} <input name="name" value="{{ name }}" required></label></p>
+  <button type="submit">{% translate "Save" %}</button>
+</form>
+<form method="post" action="{% url 'web:customer-delete' customer.id %}">
+  {% csrf_token %}
+  <button type="submit">{% translate "Delete Customer" %}</button>
+</form>
+{% endif %}
+
+<h2>{% translate "History" %}</h2>
+{% include "netatlas/_history.html" %}
+{% endblock %}

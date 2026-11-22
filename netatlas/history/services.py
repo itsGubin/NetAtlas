@@ -17,6 +17,8 @@ from django.http import Http404
 from netatlas.accounts.services import require_editor, require_role
 from netatlas.history.models import Change, FieldChange, TrackedModel, allow_tracked_writes
 
+SYSTEM_ACTOR = "system"
+
 
 @dataclass(frozen=True)
 class FieldChangeSummary:
@@ -45,6 +47,17 @@ def create_item(actor, model, **values):
         item.save()
         after = _snapshot(item)
         _record(actor, item, Change.Action.CREATED, {f: (None, v) for f, v in after.items()})
+    return item
+
+
+def create_system_item(model, **values):
+    """Create an item NetAtlas itself needs, such as the default Site. No user is credited."""
+    with transaction.atomic(), allow_tracked_writes():
+        item = model(**values)
+        item.full_clean()
+        item.save()
+        after = _snapshot(item)
+        _record(None, item, Change.Action.CREATED, {f: (None, v) for f, v in after.items()})
     return item
 
 
@@ -156,7 +169,7 @@ def _record(actor, item, action, changes) -> None:
         item_label=str(item)[:255],
         action=action,
         actor=actor,
-        actor_name=actor.get_username(),
+        actor_name=actor.get_username() if actor else SYSTEM_ACTOR,
     )
     FieldChange.objects.bulk_create(
         FieldChange(change=change, field=field, old=old, new=new)

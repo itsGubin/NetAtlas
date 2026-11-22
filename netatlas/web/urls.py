@@ -15,4 +15,10 @@ urlpatterns = [
     path("history/<slug:kind>/<int:item_id>/", views.history, name="history"),
     path("tokens/", views.tokens, name="tokens"),
     path("tokens/<int:token_id>/revoke/", views.token_revoke, name="token-revoke"),
+    path("customers/", views.customers, name="customers"),
+    path("customers/<int:customer_id>/", views.customer, name="customer"),
+    path("customers/<int:customer_id>/delete/", views.customer_remove, name="customer-delete"),
+    path("sites/", views.sites, name="sites"),
+    path("sites/<int:site_id>/", views.site, name="site"),
+    path("sites/<int:site_id>/delete/", views.site_remove, name="site-delete"),
 ]

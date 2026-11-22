@@ -19,6 +19,8 @@ from netatlas.accounts.services import (
     list_tokens,
     list_users,
     require_admin,
+    require_editor,
+    require_role,
     revoke_token,
     summarize,
 )
@@ -26,10 +28,16 @@ from netatlas.api.authentication import BearerTokenAuthentication
 from netatlas.api.conventions import allowed_filters, paginated
 from netatlas.api.serializers import (
     CreatedTokenSerializer,
+    CustomerChangeSerializer,
+    CustomerSerializer,
     HistoryEntrySerializer,
+    NewSiteSerializer,
     NewTokenSerializer,
     NewUserSerializer,
     RoleChangeSerializer,
+    SiteChangeSerializer,
+    SiteFilterSerializer,
+    SiteSerializer,
     StatusSerializer,
     TokenSerializer,
     UserSerializer,
@@ -37,6 +45,18 @@ from netatlas.api.serializers import (
     page_of,
 )
 from netatlas.history.services import item_history
+from netatlas.places.services import (
+    create_customer,
+    create_site,
+    delete_customer,
+    delete_site,
+    get_customer,
+    get_site,
+    list_customers,
+    list_sites,
+    update_customer,
+    update_site,
+)
 from netatlas.system.services import get_system_status
 
 PAGINATION = [
@@ -146,3 +166,100 @@ class HistoryView(APIView):
         entries = item_history(request.user, kind, item_id)
         allowed_filters(request)
         return paginated(request, self, entries, asdict)
+
+
+class CustomerListView(APIView):
+    @extend_schema(
+        operation_id="customers_list",
+        parameters=PAGINATION,
+        responses={200: page_of(CustomerSerializer), **errors(400, 401, 403)},
+    )
+    def get(self, request):
+        customers = list_customers(request.user)
+        allowed_filters(request)
+        return paginated(request, self, customers, asdict)
+
+    @extend_schema(
+        request=CustomerChangeSerializer,
+        responses={201: CustomerSerializer, **errors(400, 401, 403)},
+    )
+    def post(self, request):
+        require_editor(request.user)
+        body = CustomerChangeSerializer(data=request.data)
+        body.is_valid(raise_exception=True)
+        customer = create_customer(request.user, **body.validated_data)
+        return Response(asdict(customer), status=http_status.HTTP_201_CREATED)
+
+
+class CustomerDetailView(APIView):
+    @extend_schema(responses={200: CustomerSerializer, **errors(401, 403, 404)})
+    def get(self, request, customer_id):
+        return Response(asdict(get_customer(request.user, customer_id)))
+
+    @extend_schema(
+        request=CustomerChangeSerializer,
+        responses={200: CustomerSerializer, **errors(400, 401, 403, 404)},
+    )
+    def patch(self, request, customer_id):
+        require_editor(request.user)
+        body = CustomerChangeSerializer(data=request.data)
+        body.is_valid(raise_exception=True)
+        customer = update_customer(request.user, customer_id, **body.validated_data)
+        return Response(asdict(customer))
+
+    @extend_schema(
+        description="Deletes the Customer. Its Sites stay, without a Customer.",
+        responses={204: None, **errors(401, 403, 404)},
+    )
+    def delete(self, request, customer_id):
+        delete_customer(request.user, customer_id)
+        return Response(status=http_status.HTTP_204_NO_CONTENT)
+
+
+class SiteListView(APIView):
+    @extend_schema(
+        operation_id="sites_list",
+        parameters=[*PAGINATION, OpenApiParameter("customer", int)],
+        responses={200: page_of(SiteSerializer), **errors(400, 401, 403)},
+    )
+    def get(self, request):
+        require_role(request.user)
+        filters = SiteFilterSerializer(data=allowed_filters(request, "customer"))
+        filters.is_valid(raise_exception=True)
+        sites = list_sites(request.user, customer_id=filters.validated_data.get("customer"))
+        return paginated(request, self, sites, asdict)
+
+    @extend_schema(
+        request=NewSiteSerializer,
+        responses={201: SiteSerializer, **errors(400, 401, 403)},
+    )
+    def post(self, request):
+        require_editor(request.user)
+        body = NewSiteSerializer(data=request.data)
+        body.is_valid(raise_exception=True)
+        site = create_site(request.user, **body.validated_data)
+        return Response(asdict(site), status=http_status.HTTP_201_CREATED)
+
+
+class SiteDetailView(APIView):
+    @extend_schema(responses={200: SiteSerializer, **errors(401, 403, 404)})
+    def get(self, request, site_id):
+        return Response(asdict(get_site(request.user, site_id)))
+
+    @extend_schema(
+        request=SiteChangeSerializer,
+        responses={200: SiteSerializer, **errors(400, 401, 403, 404)},
+    )
+    def patch(self, request, site_id):
+        require_editor(request.user)
+        body = SiteChangeSerializer(data=request.data)
+        body.is_valid(raise_exception=True)
+        return Response(asdict(update_site(request.user, site_id, **body.validated_data)))
+
+    @extend_schema(
+        description="Deletes the Site. The last remaining Site cannot be deleted.",
+        responses={204: None, **errors(400, 401, 403, 404)},
+    )
+    def delete(self, request, site_id):
+        delete_site(request.user, site_id)
+        return Response(status=http_status.HTTP_204_NO_CONTENT)
