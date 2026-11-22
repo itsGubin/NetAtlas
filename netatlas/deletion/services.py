@@ -6,7 +6,7 @@ A preview runs the real delete and rolls it back, so it cannot disagree with wha
 import hashlib
 import hmac
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from django.core.exceptions import ValidationError
 from django.core.serializers.json import DjangoJSONEncoder
@@ -33,7 +33,7 @@ from netatlas.devices.services import (
 )
 from netatlas.history.services import capture_changes, rehearse
 from netatlas.pages.models import Page
-from netatlas.pages.services import delete_page
+from netatlas.pages.services import broken_live_fields, delete_page
 from netatlas.places.models import Customer, Site
 from netatlas.places.services import delete_customer, delete_site
 from netatlas.tagging.models import Tag
@@ -80,6 +80,8 @@ class DeletePreview:
     # Why the delete is refused. Empty if it can go ahead.
     blocked: list[str]
     fingerprint: str
+    # Live Fields on Pages that stay, which will show as broken.
+    broken_live_fields: list[Impact] = field(default_factory=list)
 
 
 def preview_delete(actor, kind: str, item_id: int) -> DeletePreview:
@@ -91,6 +93,7 @@ def preview_delete(actor, kind: str, item_id: int) -> DeletePreview:
         with rehearse() as captured:
             moves = _moves(kind, item_id)
             delete(actor, item_id)
+            broken = _broken_live_fields(captured)
     except ValidationError as error:
         return DeletePreview(kind, item_id, label, [], [], [], error.messages, "")
 
@@ -112,7 +115,17 @@ def preview_delete(actor, kind: str, item_id: int) -> DeletePreview:
             for move_kind, move_label, target in moves
         ],
         blocked=[],
-        fingerprint=_fingerprint(captured, moves),
+        fingerprint=_fingerprint(captured, moves, broken),
+        broken_live_fields=[
+            Impact(
+                "page",
+                entry.page_id,
+                entry.page_title,
+                _("Live Field breaks: %(item)s, %(field)s")
+                % {"item": entry.item_label, "field": entry.field_label},
+            )
+            for entry in broken
+        ],
     )
 
 
@@ -124,8 +137,9 @@ def confirm_delete(actor, kind: str, item_id: int, fingerprint: str) -> None:
     with transaction.atomic(), capture_changes() as captured:
         moves = _moves(kind, item_id)
         delete(actor, item_id)
+        expected = _fingerprint(captured, moves, _broken_live_fields(captured))
         # Compared as bytes, because the submitted value can be any text.
-        if not hmac.compare_digest(_fingerprint(captured, moves).encode(), fingerprint.encode()):
+        if not hmac.compare_digest(expected.encode(), fingerprint.encode()):
             raise StaleDelete
 
 
@@ -140,6 +154,15 @@ def _label(model, item_id: int) -> str:
     if item is None:
         raise Http404
     return str(item)
+
+
+def _broken_live_fields(captured) -> list:
+    """Asked after the delete, so Pages deleted along with the item don't count."""
+    return broken_live_fields(
+        (change.kind, change.item_id, change.label)
+        for change in captured
+        if change.action == "deleted"
+    )
 
 
 def _moves(kind: str, item_id: int) -> list:
@@ -170,7 +193,7 @@ def _effect(change) -> str:
     return _("changes")
 
 
-def _fingerprint(captured, moves) -> str:
+def _fingerprint(captured, moves, broken) -> str:
     """Identifies exactly what a delete does, including every old value it records."""
     changes = sorted(
         json.dumps(
@@ -185,5 +208,6 @@ def _fingerprint(captured, moves) -> str:
         )
         for c in captured
     )
-    payload = json.dumps([changes, moves], cls=DjangoJSONEncoder)
+    references = [[b.page_id, b.kind, b.item_id, b.field] for b in broken]
+    payload = json.dumps([changes, moves, references], cls=DjangoJSONEncoder)
     return hashlib.sha256(payload.encode()).hexdigest()

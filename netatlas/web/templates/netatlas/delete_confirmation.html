@@ -16,7 +16,11 @@
 <h2>{% translate "Moved up the Subnet tree" %}</h2>
 {% include "netatlas/_delete_impacts.html" with impacts=moved %}
 {% endif %}
-{% if not preview.blocked and not deleted and not changed and not moved %}
+{% if broken_live_fields %}
+<h2>{% translate "Live Fields that will break" %}</h2>
+{% include "netatlas/_delete_impacts.html" with impacts=broken_live_fields %}
+{% endif %}
+{% if not preview.blocked and not deleted and not changed and not moved and not broken_live_fields %}
 <p>{% translate "Nothing else is affected." %}</p>
 {% endif %}
 
