@@ -1,6 +1,6 @@
 """Request and response shapes. Plain serializers only: models stay behind the services."""
 
-from drf_spectacular.utils import OpenApiResponse, inline_serializer
+from drf_spectacular.utils import OpenApiResponse, extend_schema_field, inline_serializer
 from rest_framework import serializers
 
 from netatlas.accounts.roles import Role
@@ -90,6 +90,36 @@ class NewSiteSerializer(SiteChangeSerializer):
 
 class SiteFilterSerializer(serializers.Serializer):
     customer = serializers.IntegerField(required=False)
+
+
+class DeviceTypeInterfaceSerializer(serializers.Serializer):
+    name = serializers.CharField(help_text="On input, may be a bulk pattern such as `port[1-48]`.")
+    kind = serializers.ChoiceField(choices=["physical", "virtual", "lag"])
+
+
+@extend_schema_field(DeviceTypeInterfaceSerializer(many=True))
+class InterfaceListField(serializers.JSONField):
+    """Passed to the service as is, so its errors keep the standard field-error shape."""
+
+
+class DeviceTypeSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    make = serializers.CharField()
+    model_name = serializers.CharField()
+    rack_height = serializers.IntegerField()
+    interfaces = DeviceTypeInterfaceSerializer(many=True)
+
+
+class DeviceTypeChangeSerializer(serializers.Serializer):
+    make = serializers.CharField(max_length=100, required=False)
+    model_name = serializers.CharField(max_length=100, required=False)
+    rack_height = serializers.IntegerField(min_value=0, max_value=32767, required=False)
+    interfaces = InterfaceListField(required=False)
+
+
+class NewDeviceTypeSerializer(DeviceTypeChangeSerializer):
+    make = serializers.CharField(max_length=100)
+    model_name = serializers.CharField(max_length=100)
 
 
 class ErrorBodySerializer(serializers.Serializer):

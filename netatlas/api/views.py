@@ -30,7 +30,10 @@ from netatlas.api.serializers import (
     CreatedTokenSerializer,
     CustomerChangeSerializer,
     CustomerSerializer,
+    DeviceTypeChangeSerializer,
+    DeviceTypeSerializer,
     HistoryEntrySerializer,
+    NewDeviceTypeSerializer,
     NewSiteSerializer,
     NewTokenSerializer,
     NewUserSerializer,
@@ -43,6 +46,13 @@ from netatlas.api.serializers import (
     UserSerializer,
     errors,
     page_of,
+)
+from netatlas.devices.services import (
+    create_device_type,
+    delete_device_type,
+    get_device_type,
+    list_device_types,
+    update_device_type,
 )
 from netatlas.history.services import item_history
 from netatlas.places.services import (
@@ -262,4 +272,51 @@ class SiteDetailView(APIView):
     )
     def delete(self, request, site_id):
         delete_site(request.user, site_id)
+        return Response(status=http_status.HTTP_204_NO_CONTENT)
+
+
+class DeviceTypeListView(APIView):
+    @extend_schema(
+        operation_id="device_types_list",
+        parameters=PAGINATION,
+        responses={200: page_of(DeviceTypeSerializer), **errors(400, 401, 403)},
+    )
+    def get(self, request):
+        device_types = list_device_types(request.user)
+        allowed_filters(request)
+        return paginated(request, self, device_types, asdict)
+
+    @extend_schema(
+        description="Interface names may be bulk patterns such as `port[1-48]`.",
+        request=NewDeviceTypeSerializer,
+        responses={201: DeviceTypeSerializer, **errors(400, 401, 403)},
+    )
+    def post(self, request):
+        require_editor(request.user)
+        body = NewDeviceTypeSerializer(data=request.data)
+        body.is_valid(raise_exception=True)
+        device_type = create_device_type(request.user, **body.validated_data)
+        return Response(asdict(device_type), status=http_status.HTTP_201_CREATED)
+
+
+class DeviceTypeDetailView(APIView):
+    @extend_schema(responses={200: DeviceTypeSerializer, **errors(401, 403, 404)})
+    def get(self, request, device_type_id):
+        return Response(asdict(get_device_type(request.user, device_type_id)))
+
+    @extend_schema(
+        description="Devices already created from this Device Type keep their copy.",
+        request=DeviceTypeChangeSerializer,
+        responses={200: DeviceTypeSerializer, **errors(400, 401, 403, 404)},
+    )
+    def patch(self, request, device_type_id):
+        require_editor(request.user)
+        body = DeviceTypeChangeSerializer(data=request.data)
+        body.is_valid(raise_exception=True)
+        device_type = update_device_type(request.user, device_type_id, **body.validated_data)
+        return Response(asdict(device_type))
+
+    @extend_schema(responses={204: None, **errors(401, 403, 404)})
+    def delete(self, request, device_type_id):
+        delete_device_type(request.user, device_type_id)
         return Response(status=http_status.HTTP_204_NO_CONTENT)

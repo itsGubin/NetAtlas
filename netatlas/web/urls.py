@@ -21,4 +21,11 @@ urlpatterns = [
     path("sites/", views.sites, name="sites"),
     path("sites/<int:site_id>/", views.site, name="site"),
     path("sites/<int:site_id>/delete/", views.site_remove, name="site-delete"),
+    path("device-types/", views.device_types, name="device-types"),
+    path("device-types/<int:device_type_id>/", views.device_type, name="device-type"),
+    path(
+        "device-types/<int:device_type_id>/delete/",
+        views.device_type_remove,
+        name="device-type-delete",
+    ),
 ]

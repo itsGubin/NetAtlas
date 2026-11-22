@@ -1,0 +1,35 @@
+{% extends "netatlas/base.html" %}{% load i18n %}
+{% block title %}{% translate "Device Types" %} · {{ block.super }}{% endblock %}
+{% block content %}
+<h1>{% translate "Device Types" %}</h1>
+{% include "netatlas/_errors.html" %}
+<table>
+  <thead>
+    <tr>
+      <th scope="col">{% translate "Make" %}</th>
+      <th scope="col">{% translate "Model" %}</th>
+      <th scope="col">{% translate "Rack height (U)" %}</th>
+      <th scope="col">{% translate "Interfaces" %}</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for item in device_types %}
+    <tr>
+      <td>{{ item.make }}</td>
+      <td><a href="{% url 'web:device-type' item.id %}">{{ item.model_name }}</a></td>
+      <td>{{ item.rack_height }}</td>
+      <td>{{ item.interfaces|length }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% if can_edit %}
+<h2>{% translate "Add Device Type" %}</h2>
+<form method="post" action="{% url 'web:device-types' %}">
+  {% csrf_token %}
+  {% include "netatlas/_device_type_fields.html" %}
+  <button type="submit">{% translate "Add Device Type" %}</button>
+</form>
+{% endif %}
+{% endblock %}

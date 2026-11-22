@@ -62,6 +62,15 @@ Every error has the same shape. `fields` lists messages per field and is empty f
 - The last remaining Site cannot be deleted, and the attempt is a `400`.
 - A fresh install has one Site named `Default`. Its History credits the actor `system`.
 
+## Device Types
+
+`/api/device-types/` supports list, create, read, `PATCH` and delete. Every Role can read. Admins and Editors can write.
+
+- `interfaces` is a list of `{"name", "kind"}`, where `kind` is `physical`, `virtual` or `lag`. A `PATCH` replaces the whole list.
+- A name can be a bulk pattern: `port[1-48]`, `port[01-48]` (zero-padded) or `Gi[1-2]/0/[1-48]`. Responses always list the expanded names.
+- A Device Type has at most 1024 Interfaces, and their names are unique within it.
+- `rack_height` is in units, and `0` is allowed. Make and model together are unique.
+
 ## Adding a documented item
 
 - Inherit from `TrackedModel`, and set `history_kind` and any `history_exclude` fields.

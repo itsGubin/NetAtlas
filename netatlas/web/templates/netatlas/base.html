@@ -15,6 +15,7 @@
         <li><a href="{% url 'web:home' %}">{% translate "Home" %}</a></li>
         <li><a href="{% url 'web:sites' %}">{% translate "Sites" %}</a></li>
         {% if has_customers %}<li><a href="{% url 'web:customers' %}">{% translate "Customers" %}</a></li>{% endif %}
+        <li><a href="{% url 'web:device-types' %}">{% translate "Device Types" %}</a></li>
         <li><a href="{% url 'web:status' %}">{% translate "Status" %}</a></li>
         <li><a href="{% url 'web:tokens' %}">{% translate "API tokens" %}</a></li>
         {% if is_admin %}<li><a href="{% url 'web:users' %}">{% translate "Users" %}</a></li>{% endif %}

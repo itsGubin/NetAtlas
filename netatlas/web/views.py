@@ -19,6 +19,15 @@ from netatlas.accounts.services import (
     revoke_token,
     role_of,
 )
+from netatlas.devices.services import (
+    create_device_type,
+    delete_device_type,
+    format_interface_lines,
+    get_device_type,
+    list_device_types,
+    parse_interface_lines,
+    update_device_type,
+)
 from netatlas.history.services import item_history
 from netatlas.places.services import (
     create_customer,
@@ -167,6 +176,81 @@ def site_remove(request, site_id):
     except ValidationError as error:
         return _render_site(request, site_id, errors=error.messages)
     return redirect("web:sites")
+
+
+@require_http_methods(["GET", "POST"])
+def device_types(request):
+    if request.method == "GET":
+        return _render_device_types(request)
+
+    require_editor(request.user)
+    try:
+        create_device_type(request.user, **_device_type_values(request))
+    except ValidationError as error:
+        return _render_device_types(request, errors=error.messages, form=request.POST)
+    return redirect("web:device-types")
+
+
+@require_http_methods(["GET", "POST"])
+def device_type(request, device_type_id):
+    if request.method == "GET":
+        return _render_device_type(request, device_type_id)
+
+    require_editor(request.user)
+    try:
+        update_device_type(request.user, device_type_id, **_device_type_values(request))
+    except ValidationError as error:
+        return _render_device_type(
+            request, device_type_id, errors=error.messages, form=request.POST
+        )
+    return redirect("web:device-type", device_type_id=device_type_id)
+
+
+@require_POST
+def device_type_remove(request, device_type_id):
+    delete_device_type(request.user, device_type_id)
+    return redirect("web:device-types")
+
+
+def _device_type_values(request) -> dict:
+    try:
+        rack_height = forms.IntegerField(min_value=0, max_value=32767).clean(
+            request.POST.get("rack_height", "")
+        )
+    except ValidationError as error:
+        raise ValidationError({"rack_height": error.messages}) from error
+    return {
+        "make": request.POST.get("make", ""),
+        "model_name": request.POST.get("model_name", ""),
+        "rack_height": rack_height,
+        "interfaces": parse_interface_lines(request.POST.get("interfaces", "")),
+    }
+
+
+def _render_device_types(request, errors=(), form=None):
+    context = {
+        "device_types": list_device_types(request.user),
+        "errors": errors,
+        "form": form or {"rack_height": 1},
+    }
+    return render(request, "netatlas/device_types.html", context, status=400 if errors else 200)
+
+
+def _render_device_type(request, device_type_id, errors=(), form=None):
+    item = get_device_type(request.user, device_type_id)
+    context = {
+        "device_type": item,
+        "entries": item_history(request.user, "device-type", item.id),
+        "errors": errors,
+        "form": form
+        or {
+            "make": item.make,
+            "model_name": item.model_name,
+            "rack_height": item.rack_height,
+            "interfaces": format_interface_lines(item.interfaces),
+        },
+    }
+    return render(request, "netatlas/device_type.html", context, status=400 if errors else 200)
 
 
 def _customer_choice(request) -> dict:

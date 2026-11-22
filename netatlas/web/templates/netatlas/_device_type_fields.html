@@ -1,0 +1,10 @@
+{% load i18n %}{# Expects `form` with make, model_name, rack_height and interfaces. #}
+<p><label>{% translate "Make" %} <input name="make" value="{{ form.make|default:'' }}" required></label></p>
+<p><label>{% translate "Model" %} <input name="model_name" value="{{ form.model_name|default:'' }}" required></label></p>
+<p><label>{% translate "Rack height (U)" %} <input name="rack_height" inputmode="numeric" value="{{ form.rack_height }}" required></label></p>
+<p>
+  <label>{% translate "Interfaces" %}
+    <textarea name="interfaces" rows="8" aria-describedby="interfaces-help">{{ form.interfaces|default:'' }}</textarea>
+  </label>
+</p>
+<p id="interfaces-help">{% translate "One per line: name and kind (physical, virtual or lag). Without a kind, physical is used. port[1-48] defines a range." %}</p>

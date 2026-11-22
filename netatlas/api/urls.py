@@ -19,4 +19,10 @@ urlpatterns = [
     ),
     path("sites/", views.SiteListView.as_view(), name="site-list"),
     path("sites/<int:site_id>/", views.SiteDetailView.as_view(), name="site-detail"),
+    path("device-types/", views.DeviceTypeListView.as_view(), name="device-type-list"),
+    path(
+        "device-types/<int:device_type_id>/",
+        views.DeviceTypeDetailView.as_view(),
+        name="device-type-detail",
+    ),
 ]

@@ -1,0 +1,35 @@
+{% extends "netatlas/base.html" %}{% load i18n %}
+{% block title %}{{ device_type.make }} {{ device_type.model_name }} · {{ block.super }}{% endblock %}
+{% block content %}
+<h1>{{ device_type.make }} {{ device_type.model_name }}</h1>
+{% include "netatlas/_errors.html" %}
+<p>{% translate "Rack height (U)" %}: {{ device_type.rack_height }}</p>
+
+<h2>{% translate "Interfaces" %}</h2>
+<table>
+  <thead>
+    <tr><th scope="col">{% translate "Name" %}</th><th scope="col">{% translate "Kind" %}</th></tr>
+  </thead>
+  <tbody>
+    {% for interface in device_type.interfaces %}
+    <tr><td>{{ interface.name }}</td><td>{{ interface.kind }}</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% if can_edit %}
+<h2>{% translate "Edit Device Type" %}</h2>
+<form method="post" action="{% url 'web:device-type' device_type.id %}">
+  {% csrf_token %}
+  {% include "netatlas/_device_type_fields.html" %}
+  <button type="submit">{% translate "Save" %}</button>
+</form>
+<form method="post" action="{% url 'web:device-type-delete' device_type.id %}">
+  {% csrf_token %}
+  <button type="submit">{% translate "Delete Device Type" %}</button>
+</form>
+{% endif %}
+
+<h2>{% translate "History" %}</h2>
+{% include "netatlas/_history.html" %}
+{% endblock %}
