@@ -127,6 +127,7 @@ urlpatterns = [
         name="page-template-preview",
     ),
     path("pages/", views.PageListView.as_view(), name="page-list"),
+    path("pages/preview/", views.PagePreviewView.as_view(), name="page-preview"),
     path("pages/<int:page_id>/", views.PageDetailView.as_view(), name="page-detail"),
     path(
         "pages/<int:page_id>/live-fields/",

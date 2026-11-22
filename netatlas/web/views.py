@@ -1,4 +1,5 @@
 import json
+from dataclasses import asdict
 
 from django import forms
 from django.contrib import messages
@@ -113,6 +114,7 @@ from netatlas.pages.services import (
     update_page_template,
     create_page,
     editor_body,
+    referenced_by,
     get_page,
     list_pages,
     live_field_options,
@@ -140,7 +142,7 @@ from netatlas.tagging.services import (
     tag_usage,
     update_tag,
 )
-from netatlas.web.page_html import page_html
+from netatlas.web.page_html import page_html, page_preview_html
 
 
 def home(request):
@@ -1192,6 +1194,9 @@ def _render_page(request, page_id, errors=(), status=200):
         "html": page_html(request.user, page_id),
         "item_url": item_url,
         "attachments": list_attachments(request.user, page_id),
+        "references": (
+            referenced_by(request.user, item.item_kind, item.item_id) if item.item_id else []
+        ),
         "entries": sorted(entries, key=lambda entry: (entry.at, entry.id), reverse=True),
         "errors": errors,
     }
@@ -1219,6 +1224,29 @@ def page_edit(request, page_id):
             request, page_id, errors=error.messages, title=title, body=body, sections=sections
         )
     return redirect("web:page", page_id=page_id)
+
+
+@require_POST
+def page_preview(request):
+    """The rendered Page for the editor. An invalid draft shows why, without saving anything."""
+    require_editor(request.user)
+    raw_id = request.POST.get("page_id", "")
+    if raw_id and not (raw_id.isascii() and raw_id.isdecimal() and len(raw_id) <= 18):
+        raise Http404
+    sections = None
+    body = request.POST.get("body")
+    if "section_name" in request.POST:
+        names = request.POST.getlist("section_name")
+        sections = dict(zip(names, request.POST.getlist("section_content"), strict=False))
+        body = None
+    context = {}
+    try:
+        context["html"] = page_preview_html(
+            request.user, int(raw_id) if raw_id else None, body, sections
+        )
+    except ValidationError as error:
+        context["errors"] = error.messages
+    return render(request, "netatlas/_page_preview.html", context)
 
 
 def page_mention_options(request):
@@ -1529,8 +1557,11 @@ def page_template(request, template_id):
 def _render_page_templates(request, errors=(), name="", body=None, device_type=""):
     templates = list_page_templates(request.user)
     taken = {template.device_type_id for template in templates}
+    names = _kind_names()
     context = {
-        "templates": templates,
+        "templates": [
+            {**asdict(template), "kind_name": names[template.item_kind]} for template in templates
+        ],
         "device_types": [d for d in list_device_types(request.user) if d.id not in taken],
         "selected_device_type": int(device_type) if device_type.isdecimal() else None,
         "errors": errors,
@@ -1545,7 +1576,7 @@ def _render_page_template(
 ):
     template = get_page_template(request.user, template_id)
     context = {
-        "template": template,
+        "template": {**asdict(template), "kind_name": _kind_names()[template.item_kind]},
         "name": template.name if name is None else name,
         "body": template.body if body is None else body,
         "removed": removed,

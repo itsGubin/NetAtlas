@@ -638,6 +638,22 @@ class SearchResultsSerializer(serializers.Serializer):
     groups = SearchGroupSerializer(many=True)
 
 
+class PagePreviewRequestSerializer(serializers.Serializer):
+    page_id = serializers.IntegerField(
+        required=False, min_value=1, help_text="The Page being edited. Omit it for a new Page."
+    )
+    body = serializers.CharField(required=False, allow_blank=True, trim_whitespace=False)
+    sections = serializers.DictField(
+        required=False,
+        child=serializers.CharField(allow_blank=True, trim_whitespace=False),
+        help_text="Free-text Sections of an Item Page, by name.",
+    )
+
+
+class PagePreviewSerializer(serializers.Serializer):
+    html = serializers.CharField(allow_blank=True, help_text="Safe HTML. Raw HTML is escaped.")
+
+
 class AttachmentSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     page_id = serializers.IntegerField()

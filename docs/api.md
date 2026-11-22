@@ -162,6 +162,7 @@ Every error has the same shape. `fields` lists messages per field and is empty f
 - `body` is Markdown. Raw HTML is shown as text. A Mention is written `@[device:12]`, with any documented item kind. The form `@[any text](device:12)` is accepted and stored as `@[device:12]`. Text in code spans and code blocks is not a Mention.
 - `GET /api/items/<kind>/<id>/referenced-by/` lists every Page that mentions an item. `GET /api/mention-options/?q=core` finds items to mention.
 - A Live Field is written `@{device:12.ip-addresses}` and always shows the current value. The form `@{any text}(device:12.ip-addresses)` is accepted and stored in the short form. `GET /api/pages/<id>/live-fields/` returns each one's current `values`, with `is_broken` true once its item is deleted. `GET /api/live-field-options/?q=core ip` finds fields to insert.
+- `POST /api/pages/preview/` returns the `html` that saving would show, and saves nothing. It takes `body`, or `sections` with the `page_id` of an Item Page. It needs the Admin or Editor Role.
 - Pages accept Tags through `/api/items/page/<id>/tags/`, and `GET /api/pages/?tag=prod` filters by them.
 
 ## Attachments

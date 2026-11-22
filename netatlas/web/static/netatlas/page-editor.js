@@ -58,6 +58,8 @@
     textarea.setRangeText(token, found.start, end, "end");
     close();
     textarea.focus();
+    // Setting the text from script fires no event, and the preview listens for one.
+    textarea.dispatchEvent(new Event("input", { bubbles: true }));
   };
 
   const search = async ({ query, url: base }) => {

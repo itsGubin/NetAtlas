@@ -3,7 +3,7 @@
 {% block content %}
 <h1>{{ template.name }}</h1>
 {% include "netatlas/_errors.html" %}
-<p>{% if template.device_type_name %}{% translate "Override for" %} <a href="{% url 'web:device-type' template.device_type_id %}">{{ template.device_type_name }}</a>{% else %}{% translate "Default for" %} {{ template.item_kind }}{% endif %} · {% blocktranslate count pages=template.page_count %}{{ pages }} Page{% plural %}{{ pages }} Pages{% endblocktranslate %}</p>
+<p>{% if template.device_type_name %}{% translate "Override for" %} <a href="{% url 'web:device-type' template.device_type_id %}">{{ template.device_type_name }}</a>{% else %}{% translate "Default for" %} {{ template.kind_name }}{% endif %} · {% blocktranslate count pages=template.page_count %}{{ pages }} Page{% plural %}{{ pages }} Pages{% endblocktranslate %}</p>
 
 {% if can_edit %}
 {% if removed %}

@@ -34,6 +34,17 @@
 <p><small>{% translate "To show an image in the Page, paste its code into the Page's text." %}</small></p>
 {% endif %}
 
+{% if page.item_id %}
+<h2>{% translate "Referenced by" %}</h2>
+{% if references %}
+<ul>
+  {% for reference in references %}<li><a href="{% url 'web:page' reference.id %}">{{ reference.title }}</a></li>{% endfor %}
+</ul>
+{% else %}
+<p>—</p>
+{% endif %}
+{% endif %}
+
 {% include "netatlas/_tags.html" with tag_kind="page" tag_item=page.id %}
 
 <h2>{% translate "History" %}</h2>

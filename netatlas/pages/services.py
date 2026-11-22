@@ -213,7 +213,31 @@ def delete_page(actor, page_id: int) -> None:
 def render_page(actor, page_id: int, link: Callable[[str, int], str]) -> str:
     """The Page as safe HTML, with current values. `link` gives a mentioned item's URL."""
     require_role(actor)
-    body = _find(page_id).body
+    return _render(_find(page_id).body, link)
+
+
+def preview_page(
+    actor, link: Callable[[str, int], str], *, page_id=None, body=None, sections=None
+) -> str:
+    """Safe HTML of what saving this content would show. Nothing is saved."""
+    require_editor(actor)
+    if page_id is None:
+        if sections is not None:
+            message = _("Only an Item Page has Free-text Sections.")
+            raise ValidationError({"sections": [message]})
+        return _render(markup.to_stored(body or ""), link)
+    page = _find(page_id)
+    if page.item_id is None:
+        if sections is not None:
+            message = _("Only an Item Page has Free-text Sections.")
+            raise ValidationError({"sections": [message]})
+        return _render(markup.to_stored(page.body if body is None else body), link)
+    if body is None and sections is None:
+        return _render(page.body, link)
+    return _render(_item_page_content(page, body, sections)["body"], link)
+
+
+def _render(body: str, link: Callable[[str, int], str]) -> str:
     live_fields = markup.live_fields_in(body)
     items = _items(markup.mentions_in(body) | {(k, i) for k, i, _field in live_fields})
 

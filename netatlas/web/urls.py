@@ -118,6 +118,7 @@ urlpatterns = [
         name="subnet-delete",
     ),
     path("pages/", views.pages, name="pages"),
+    path("pages/preview/", views.page_preview, name="page-preview"),
     path("pages/mention-options/", views.page_mention_options, name="mention-options"),
     path("pages/live-field-options/", views.page_live_field_options, name="live-field-options"),
     path("pages/<int:page_id>/", views.page, name="page"),
