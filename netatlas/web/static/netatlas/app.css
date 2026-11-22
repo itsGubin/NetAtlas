@@ -1,0 +1,834 @@
+/* NetAtlas: one self-hosted stylesheet on semantic HTML. No external fonts or CDNs. */
+
+:root {
+  color-scheme: light;
+  --bg: #f6f7fb;
+  --surface: #ffffff;
+  --surface-raised: #f1f3f9;
+  --text: #171b26;
+  --muted: #626b7f;
+  --border: #e3e6ef;
+  --border-strong: #cdd2df;
+  --accent: #4f46e5;
+  --accent-hover: #4338ca;
+  --accent-text: #ffffff;
+  --accent-soft: #eef0fe;
+  --accent-soft-text: #3f37c9;
+  --danger: #b42318;
+  --danger-soft: #fef1f0;
+  --danger-border: #fbcdc8;
+  --shadow: 0 1px 2px rgb(23 27 38 / 5%), 0 2px 8px rgb(23 27 38 / 4%);
+  --ring: 0 0 0 3px rgb(79 70 229 / 22%);
+  --radius-sm: 6px;
+  --radius: 9px;
+  --radius-lg: 13px;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #0d1017;
+    --surface: #151a24;
+    --surface-raised: #1d2431;
+    --text: #e8ebf2;
+    --muted: #98a2b6;
+    --border: #262e3d;
+    --border-strong: #38435a;
+    --accent: #818cf8;
+    --accent-hover: #a5b0fb;
+    --accent-text: #10131c;
+    --accent-soft: #232845;
+    --accent-soft-text: #b9c0fd;
+    --danger: #ffa59c;
+    --danger-soft: #331c1e;
+    --danger-border: #5f2f30;
+    --shadow: 0 1px 2px rgb(0 0 0 / 35%), 0 4px 14px rgb(0 0 0 / 22%);
+    --ring: 0 0 0 3px rgb(129 140 248 / 30%);
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0d1017;
+  --surface: #151a24;
+  --surface-raised: #1d2431;
+  --text: #e8ebf2;
+  --muted: #98a2b6;
+  --border: #262e3d;
+  --border-strong: #38435a;
+  --accent: #818cf8;
+  --accent-hover: #a5b0fb;
+  --accent-text: #10131c;
+  --accent-soft: #232845;
+  --accent-soft-text: #b9c0fd;
+  --danger: #ffa59c;
+  --danger-soft: #331c1e;
+  --danger-border: #5f2f30;
+  --shadow: 0 1px 2px rgb(0 0 0 / 35%), 0 4px 14px rgb(0 0 0 / 22%);
+  --ring: 0 0 0 3px rgb(129 140 248 / 30%);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 14.5px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Shell: a sidebar once logged in, a centred card on the login page. */
+body > header {
+  position: relative;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+body > header > a:first-child {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  text-decoration: none;
+}
+
+body > header > a:first-child::before {
+  content: "";
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  background:
+    radial-gradient(circle at 30% 30%, rgb(255 255 255 / 85%) 0 2.5px, transparent 3px),
+    radial-gradient(circle at 72% 45%, rgb(255 255 255 / 85%) 0 2px, transparent 2.5px),
+    radial-gradient(circle at 42% 75%, rgb(255 255 255 / 85%) 0 2px, transparent 2.5px),
+    linear-gradient(135deg, #6366f1, #06b6d4);
+}
+
+.theme-toggle {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+  box-shadow: none;
+}
+
+.theme-toggle[hidden] {
+  display: none;
+}
+
+.theme-toggle:hover {
+  border-color: var(--border-strong);
+  background: var(--surface-raised);
+  color: var(--text);
+}
+
+.theme-toggle svg {
+  width: 16px;
+  height: 16px;
+}
+
+.theme-toggle[data-active="light"] .icon-sun,
+.theme-toggle[data-active="dark"] .icon-moon {
+  display: none;
+}
+
+body > header nav ul {
+  display: flex;
+  gap: 2px;
+  margin: 10px -16px 2px;
+  padding: 0 16px 4px;
+  overflow-x: auto;
+  list-style: none;
+  scrollbar-width: none;
+}
+
+body > header nav a {
+  display: block;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  color: var(--muted);
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background-color 0.12s, color 0.12s;
+}
+
+body > header nav a:hover {
+  background: var(--surface-raised);
+  color: var(--text);
+}
+
+body > header nav a[aria-current="page"] {
+  background: var(--accent-soft);
+  color: var(--accent-soft-text);
+  font-weight: 600;
+}
+
+body > header form {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+body > header form label {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+body > header input {
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+  background: var(--bg);
+}
+
+body > header button:not(.theme-toggle) {
+  border-color: var(--border);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: none;
+}
+
+body > header button:not(.theme-toggle):hover {
+  border-color: var(--border-strong);
+  background: var(--surface-raised);
+  color: var(--text);
+}
+
+main {
+  width: 100%;
+  max-width: 1160px;
+  min-width: 0;
+  margin: 0 auto;
+  padding: 20px 16px 48px;
+}
+
+/* The login page: one card in the middle. */
+body:not(:has(> header nav)) > header {
+  background: transparent;
+  border-bottom: 0;
+}
+
+body:not(:has(> header nav)) main {
+  max-width: 400px;
+  margin-top: 7vh;
+  padding: 28px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+body:not(:has(> header nav)) main form {
+  margin: 12px 0 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+}
+
+body:not(:has(> header nav)) main label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+body:not(:has(> header nav)) main input:not([type="hidden"]) {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+}
+
+body:not(:has(> header nav)) main button {
+  width: 100%;
+  padding-block: 8px;
+}
+
+body:not(:has(> header nav)) main form + form button {
+  border-color: var(--border-strong);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: none;
+}
+
+body:not(:has(> header nav)) main form + form button:hover {
+  background: var(--surface-raised);
+}
+
+@media (min-width: 900px) {
+  body:has(> header nav) {
+    display: grid;
+    grid-template-columns: 236px minmax(0, 1fr);
+  }
+
+  body:has(> header nav) > header {
+    position: sticky;
+    top: 0;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    padding: 16px 12px 14px;
+    overflow-y: auto;
+    border-right: 1px solid var(--border);
+    border-bottom: 0;
+  }
+
+  body:has(> header nav) > header > a:first-child {
+    padding: 2px 6px;
+  }
+
+  body:has(> header nav) > header nav {
+    order: 2;
+    flex: 1;
+  }
+
+  body:has(> header nav) > header nav ul {
+    flex-direction: column;
+    margin: 12px 0;
+    padding: 0;
+    overflow: visible;
+  }
+
+  body:has(> header nav) > header form[role="search"] {
+    order: 1;
+    align-items: flex-end;
+    margin-top: 14px;
+  }
+
+  body:has(> header nav) > header form[role="search"] label {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 3px;
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  body:has(> header nav) > header form[role="search"] input {
+    flex: none;
+    font-size: 13.5px;
+  }
+
+  body:has(> header nav) > header form:not([role="search"]) {
+    order: 3;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+  }
+
+  body:has(> header nav) > header form:not([role="search"]) button {
+    width: 100%;
+  }
+
+  main {
+    padding: 32px 40px 64px;
+  }
+}
+
+/* Text */
+h1,
+h2,
+h3 {
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+h1 {
+  margin: 0 0 18px;
+  font-size: 25px;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+
+h2 {
+  margin: 30px 0 10px;
+  font-size: 16.5px;
+  font-weight: 650;
+  letter-spacing: -0.012em;
+}
+
+h3 {
+  margin: 20px 0 8px;
+  font-size: 14.5px;
+  font-weight: 650;
+}
+
+p {
+  margin: 8px 0;
+}
+
+small {
+  color: var(--muted);
+  font-size: 12.5px;
+}
+
+a {
+  color: var(--accent);
+  text-decoration-color: color-mix(in srgb, currentcolor 35%, transparent);
+  text-underline-offset: 2px;
+}
+
+a:hover {
+  color: var(--accent-hover);
+  text-decoration-color: currentcolor;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+code,
+pre {
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+  font-family: var(--mono);
+  font-size: 12.5px;
+}
+
+code {
+  padding: 1px 5px;
+  overflow-wrap: anywhere;
+}
+
+pre {
+  padding: 12px;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+}
+
+pre code {
+  padding: 0;
+  background: none;
+}
+
+dl {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 6px 20px;
+  margin: 10px 0;
+  padding: 14px 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+dt {
+  color: var(--muted);
+}
+
+dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Tables scroll on their own, so a wide one never widens the page. */
+table {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  margin: 10px 0 18px;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  border-spacing: 0;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+caption {
+  padding: 9px 12px;
+  font-weight: 650;
+  text-align: left;
+}
+
+th,
+td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+
+thead th {
+  background: var(--surface-raised);
+  color: var(--muted);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+tbody tr:last-child > * {
+  border-bottom: 0;
+}
+
+tbody tr:hover > td {
+  background: color-mix(in srgb, var(--surface-raised) 55%, transparent);
+}
+
+/* The name column stays readable, and the table scrolls instead. */
+tbody td:first-child {
+  min-width: 150px;
+}
+
+/* Rack elevation: the two faces side by side, each Device one block. */
+table[data-face] {
+  display: inline-table;
+  width: min(100%, 330px);
+  margin-right: 14px;
+  overflow: hidden;
+  vertical-align: top;
+}
+
+table[data-face] caption {
+  caption-side: top;
+  padding-left: 2px;
+}
+
+/* Every unit is equally tall, so the two faces line up whatever the names are. */
+table[data-face] tbody tr {
+  height: 40px;
+}
+
+table[data-face] tbody th,
+table[data-face] tbody td {
+  padding-block: 6px;
+  line-height: 1.35;
+}
+
+table[data-face] tbody th {
+  width: 52px;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 400;
+  text-align: right;
+}
+
+table[data-face] td {
+  width: 240px;
+  min-width: 0;
+  color: var(--muted);
+}
+
+table[data-face] td[rowspan] {
+  border-left: 3px solid var(--accent);
+  background: var(--accent-soft);
+  font-weight: 600;
+}
+
+table[data-face] td[rowspan] a {
+  color: var(--accent-soft-text);
+}
+
+/* Forms */
+input,
+select,
+textarea,
+button {
+  max-width: 100%;
+  font: inherit;
+}
+
+input,
+select,
+textarea {
+  padding: 7px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  transition: border-color 0.12s, box-shadow 0.12s;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--accent);
+  outline: none;
+  box-shadow: var(--ring);
+}
+
+input[type="checkbox"],
+input[type="radio"] {
+  padding: 0;
+  accent-color: var(--accent);
+}
+
+input[type="file"] {
+  padding: 5px;
+}
+
+textarea {
+  display: block;
+  width: 100%;
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+button {
+  padding: 7px 15px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: var(--accent-text);
+  font-weight: 550;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgb(23 27 38 / 12%);
+  transition: background-color 0.12s, border-color 0.12s, color 0.12s;
+}
+
+button:hover {
+  border-color: var(--accent-hover);
+  background: var(--accent-hover);
+}
+
+main form {
+  margin: 10px 0;
+}
+
+main > form {
+  padding: 16px 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+main > form:not(:has(textarea)) {
+  max-width: 640px;
+}
+
+main > form:not(:has(input:not([type="hidden"]), select, textarea)) {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+}
+
+main form label {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+/* A field's label sits above it, and fields share one width. */
+main form p > label:not(:has(input[type="checkbox"], input[type="radio"])) {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 100%;
+  margin-right: 10px;
+  vertical-align: bottom;
+}
+
+main form p > label input:not([type="checkbox"], [type="radio"], [type="file"]),
+main form p > label select {
+  width: 260px;
+  max-width: 100%;
+  font-weight: 400;
+}
+
+main form p > button {
+  vertical-align: bottom;
+}
+
+main li > form {
+  display: inline-block;
+  margin: 0 0 0 6px;
+}
+
+main li > form button {
+  padding: 1px 8px;
+  border-color: var(--border);
+  background: transparent;
+  color: var(--muted);
+  font-size: 12.5px;
+  box-shadow: none;
+}
+
+main li > form button:hover {
+  border-color: var(--danger-border);
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+/* Page content */
+article {
+  margin: 10px 0;
+  padding: 18px 22px;
+  overflow-wrap: anywhere;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+main > form article {
+  background: var(--bg);
+  box-shadow: none;
+}
+
+article:empty {
+  min-height: 52px;
+}
+
+article > :first-child {
+  margin-top: 0;
+}
+
+article > :last-child {
+  margin-bottom: 0;
+}
+
+article h1 {
+  font-size: 21px;
+}
+
+article img {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius-sm);
+}
+
+article table {
+  box-shadow: none;
+}
+
+.live-field {
+  padding: 1px 6px;
+  border-radius: 5px;
+  background: var(--accent-soft);
+  color: var(--accent-soft-text);
+  font-weight: 500;
+}
+
+mark {
+  padding: 1px 6px;
+  border-radius: 5px;
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+/* Messages */
+[role="alert"] {
+  margin: 10px 0;
+  padding: 11px 15px;
+  border: 1px solid var(--danger-border);
+  border-radius: var(--radius);
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+ul[role="alert"] {
+  padding-left: 32px;
+}
+
+[role="alert"] h2 {
+  margin-top: 0;
+}
+
+[role="status"] {
+  color: var(--muted);
+}
+
+/* The `@` picker */
+#mention-options {
+  max-height: 240px;
+  margin: 4px 0;
+  padding: 4px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  list-style: none;
+}
+
+#mention-options [role="option"] {
+  padding: 5px 9px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+#mention-options [role="option"][aria-selected="true"] {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+/* Tag filter and History */
+main nav {
+  margin: 0 0 12px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+main nav a {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--surface-raised);
+  text-decoration: none;
+}
+
+main nav a[aria-current] {
+  background: var(--accent);
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+section[data-history-action] {
+  margin: 10px 0;
+}
+
+section[data-history-action] h2 {
+  margin: 14px 0 4px;
+  color: var(--muted);
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+section[data-history-action] td {
+  max-width: 420px;
+  overflow-wrap: anywhere;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+  }
+}
