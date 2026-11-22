@@ -71,6 +71,17 @@ Every error has the same shape. `fields` lists messages per field and is empty f
 - A Device Type has at most 1024 Interfaces, and their names are unique within it.
 - `rack_height` is in units, and `0` is allowed. Make and model together are unique.
 
+## Devices
+
+`/api/devices/` supports list, create, read, `PATCH` and delete. Every Role can read. Admins and Editors can write. Lists filter by `site`, `kind` and `parent`.
+
+- `kind` is `physical` or `virtual` and cannot be changed. Device names are unique within a Site.
+- A Virtual Device needs a Hypervisor (`parent_id`), is always in its Site and takes no rack space. A Physical Device has no `parent_id` and needs a `site_id`.
+- `device_type_id` copies the Device Type's Interfaces and height once. A Virtual Device can only use a type whose Interfaces are all virtual.
+- Changing a Device's Site moves everything nested on it, and each move is recorded in History. A name clash in the new Site moves nothing.
+- `GET /api/devices/<id>/virtual-devices/` lists everything running on a Device, depth first, with its `depth`.
+- Deleting a Device deletes its Interfaces. A Hypervisor with Virtual Devices, and a Site with Devices, cannot be deleted.
+
 ## Adding a documented item
 
 - Inherit from `TrackedModel`, and set `history_kind` and any `history_exclude` fields.

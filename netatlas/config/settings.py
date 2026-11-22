@@ -133,7 +133,11 @@ SPECTACULAR_SETTINGS = {
     "SERVE_PERMISSIONS": ["rest_framework.permissions.IsAuthenticated"],
     "COMPONENT_SPLIT_REQUEST": True,
     "SCHEMA_PATH_PREFIX": "/api/",
-    "ENUM_NAME_OVERRIDES": {"Role": "netatlas.accounts.roles.Role"},
+    "ENUM_NAME_OVERRIDES": {
+        "Role": "netatlas.accounts.roles.Role",
+        "DeviceKind": "netatlas.api.serializers.DEVICE_KINDS",
+        "InterfaceKind": "netatlas.api.serializers.INTERFACE_KINDS",
+    },
 }
 
 if DEBUG:

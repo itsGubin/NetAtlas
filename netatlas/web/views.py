@@ -20,13 +20,19 @@ from netatlas.accounts.services import (
     role_of,
 )
 from netatlas.devices.services import (
+    create_device,
     create_device_type,
+    delete_device,
     delete_device_type,
     format_interface_lines,
+    get_device,
     get_device_type,
     list_device_types,
+    list_devices,
     parse_interface_lines,
+    update_device,
     update_device_type,
+    virtual_devices,
 )
 from netatlas.history.services import item_history
 from netatlas.places.services import (
@@ -179,6 +185,123 @@ def site_remove(request, site_id):
 
 
 @require_http_methods(["GET", "POST"])
+def devices(request):
+    if request.method == "GET":
+        return _render_devices(request)
+
+    require_editor(request.user)
+    try:
+        create_device(request.user, **_new_device_values(request))
+    except ValidationError as error:
+        return _render_devices(request, errors=error.messages, form=request.POST)
+    return redirect("web:devices")
+
+
+@require_http_methods(["GET", "POST"])
+def device(request, device_id):
+    if request.method == "GET":
+        return _render_device(request, device_id)
+
+    require_editor(request.user)
+    try:
+        update_device(request.user, device_id, **_device_changes(request))
+    except ValidationError as error:
+        return _render_device(request, device_id, errors=error.messages, form=request.POST)
+    return redirect("web:device", device_id=device_id)
+
+
+@require_POST
+def device_remove(request, device_id):
+    try:
+        delete_device(request.user, device_id)
+    except ValidationError as error:
+        return _render_device(request, device_id, errors=error.messages)
+    return redirect("web:devices")
+
+
+def _new_device_values(request) -> dict:
+    kind = request.POST.get("kind", "")
+    values = {
+        "name": request.POST.get("name", ""),
+        "kind": kind,
+        "parent_id": _posted_id(request, "parent_id"),
+        "device_type_id": _posted_id(request, "device_type_id"),
+    }
+    # The form always submits a Site, but a Virtual Device takes its Hypervisor's.
+    if kind != "virtual":
+        values["site_id"] = _posted_id(request, "site_id")
+    return values
+
+
+def _device_changes(request) -> dict:
+    values = {"name": request.POST.get("name", "")}
+    for field in ("site_id", "parent_id"):
+        if field in request.POST:
+            values[field] = _posted_id(request, field)
+    if "rack_height" in request.POST:
+        try:
+            values["rack_height"] = forms.IntegerField(min_value=0, max_value=32767).clean(
+                request.POST["rack_height"]
+            )
+        except ValidationError as error:
+            raise ValidationError({"rack_height": error.messages}) from error
+    return values
+
+
+def _posted_id(request, field: str) -> int | None:
+    value = request.POST.get(field, "")
+    if not value:
+        return None
+    try:
+        return int(value)
+    except ValueError as error:
+        raise ValidationError({field: [_("This item does not exist.")]}) from error
+
+
+def _submitted_id(request, field: str, default=None):
+    """The choice to preselect when a form is shown again after an error."""
+    value = request.POST.get(field)
+    if value is None:
+        return default
+    return int(value) if value.isdecimal() else None
+
+
+def _render_devices(request, errors=(), form=None):
+    all_devices = list_devices(request.user)
+    context = {
+        "devices": all_devices,
+        "sites": list_sites(request.user),
+        "device_types": list_device_types(request.user),
+        "hypervisors": all_devices,
+        "selected_site": _submitted_id(request, "site_id"),
+        "selected_parent": _submitted_id(request, "parent_id"),
+        "selected_type": _submitted_id(request, "device_type_id"),
+        "errors": errors,
+        "form": form or {},
+    }
+    return render(request, "netatlas/devices.html", context, status=400 if errors else 200)
+
+
+def _render_device(request, device_id, errors=(), form=None):
+    item = get_device(request.user, device_id)
+    nested = virtual_devices(request.user, device_id)
+    # A Device cannot run on itself or on anything nested on it.
+    excluded = {item.id, *(entry.id for entry in nested)}
+    context = {
+        "device": item,
+        "virtual_devices": nested,
+        "sites": list_sites(request.user),
+        "hypervisors": [d for d in list_devices(request.user) if d.id not in excluded],
+        "selected_site": _submitted_id(request, "site_id", item.site_id),
+        "selected_parent": _submitted_id(request, "parent_id", item.parent_id),
+        "entries": item_history(request.user, "device", item.id),
+        "errors": errors,
+        "form": form or {"name": item.name, "rack_height": item.rack_height},
+    }
+    return render(request, "netatlas/device.html", context, status=400 if errors else 200)
+
+
+@require_http_methods(["GET", "POST"])
 def device_types(request):
     if request.method == "GET":
         return _render_device_types(request)
@@ -266,14 +389,6 @@ def _customer_choice(request) -> dict:
         raise ValidationError({"customer": [_("Unknown Customer.")]}) from error
 
 
-def _submitted_customer(request, default=None):
-    """The Customer to preselect when a form is shown again after an error."""
-    value = request.POST.get("customer_id")
-    if value is None:
-        return default
-    return int(value) if value.isdecimal() else None
-
-
 def _render_customers(request, errors=(), name=""):
     context = {"customers": list_customers(request.user), "errors": errors, "name": name}
     return render(request, "netatlas/customers.html", context, status=400 if errors else 200)
@@ -294,7 +409,7 @@ def _render_sites(request, errors=(), name=""):
     context = {
         "sites": list_sites(request.user),
         "customers": list_customers(request.user),
-        "selected_customer": _submitted_customer(request),
+        "selected_customer": _submitted_id(request, "customer_id"),
         "errors": errors,
         "name": name,
     }
@@ -306,7 +421,7 @@ def _render_site(request, site_id, errors=(), name=None):
     context = {
         "site": item,
         "customers": list_customers(request.user),
-        "selected_customer": _submitted_customer(request, item.customer_id),
+        "selected_customer": _submitted_id(request, "customer_id", item.customer_id),
         "entries": item_history(request.user, "site", item.id),
         "errors": errors,
         "name": item.name if name is None else name,

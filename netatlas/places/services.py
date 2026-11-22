@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.db.models import ProtectedError
 from django.http import Http404
 from django.utils.translation import gettext as _
 
@@ -94,7 +95,11 @@ def delete_site(actor, site_id: int) -> None:
             raise Http404
         if len(site_ids) == 1:
             raise ValidationError(_("NetAtlas must keep at least one Site."))
-        delete_item(actor, Site.objects.get(pk=site_id))
+        try:
+            delete_item(actor, Site.objects.get(pk=site_id))
+        except ProtectedError as error:
+            message = _("This Site still has Devices. Move or delete them first.")
+            raise ValidationError(message) from error
 
 
 def list_sites(actor, customer_id: int | None = None) -> list[SiteSummary]:

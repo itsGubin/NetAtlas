@@ -30,9 +30,13 @@ from netatlas.api.serializers import (
     CreatedTokenSerializer,
     CustomerChangeSerializer,
     CustomerSerializer,
+    DeviceChangeSerializer,
+    DeviceFilterSerializer,
+    DeviceSerializer,
     DeviceTypeChangeSerializer,
     DeviceTypeSerializer,
     HistoryEntrySerializer,
+    NewDeviceSerializer,
     NewDeviceTypeSerializer,
     NewSiteSerializer,
     NewTokenSerializer,
@@ -44,15 +48,22 @@ from netatlas.api.serializers import (
     StatusSerializer,
     TokenSerializer,
     UserSerializer,
+    VirtualDeviceSerializer,
     errors,
     page_of,
 )
 from netatlas.devices.services import (
+    create_device,
     create_device_type,
+    delete_device,
     delete_device_type,
+    get_device,
     get_device_type,
     list_device_types,
+    list_devices,
+    update_device,
     update_device_type,
+    virtual_devices,
 )
 from netatlas.history.services import item_history
 from netatlas.places.services import (
@@ -320,3 +331,77 @@ class DeviceTypeDetailView(APIView):
     def delete(self, request, device_type_id):
         delete_device_type(request.user, device_type_id)
         return Response(status=http_status.HTTP_204_NO_CONTENT)
+
+
+class DeviceListView(APIView):
+    @extend_schema(
+        operation_id="devices_list",
+        parameters=[
+            *PAGINATION,
+            OpenApiParameter("site", int),
+            OpenApiParameter("kind", str, enum=["physical", "virtual"]),
+            OpenApiParameter("parent", int, description="Direct Virtual Devices of a Hypervisor."),
+        ],
+        responses={200: page_of(DeviceSerializer), **errors(400, 401, 403)},
+    )
+    def get(self, request):
+        require_role(request.user)
+        filters = DeviceFilterSerializer(data=allowed_filters(request, "site", "kind", "parent"))
+        filters.is_valid(raise_exception=True)
+        values = filters.validated_data
+        devices = list_devices(
+            request.user,
+            site_id=values.get("site"),
+            kind=values.get("kind"),
+            parent_id=values.get("parent"),
+        )
+        return paginated(request, self, devices, asdict)
+
+    @extend_schema(
+        description="A Device Type's Interfaces and height are copied once, at creation.",
+        request=NewDeviceSerializer,
+        responses={201: DeviceSerializer, **errors(400, 401, 403)},
+    )
+    def post(self, request):
+        require_editor(request.user)
+        body = NewDeviceSerializer(data=request.data)
+        body.is_valid(raise_exception=True)
+        device = create_device(request.user, **body.validated_data)
+        return Response(asdict(device), status=http_status.HTTP_201_CREATED)
+
+
+class DeviceDetailView(APIView):
+    @extend_schema(responses={200: DeviceSerializer, **errors(401, 403, 404)})
+    def get(self, request, device_id):
+        return Response(asdict(get_device(request.user, device_id)))
+
+    @extend_schema(
+        description="A new Site also moves everything nested on the Device.",
+        request=DeviceChangeSerializer,
+        responses={200: DeviceSerializer, **errors(400, 401, 403, 404)},
+    )
+    def patch(self, request, device_id):
+        require_editor(request.user)
+        body = DeviceChangeSerializer(data=request.data)
+        body.is_valid(raise_exception=True)
+        return Response(asdict(update_device(request.user, device_id, **body.validated_data)))
+
+    @extend_schema(
+        description="Deletes the Device and its Interfaces. A Hypervisor must be empty first.",
+        responses={204: None, **errors(400, 401, 403, 404)},
+    )
+    def delete(self, request, device_id):
+        delete_device(request.user, device_id)
+        return Response(status=http_status.HTTP_204_NO_CONTENT)
+
+
+class VirtualDeviceListView(APIView):
+    @extend_schema(
+        description="Everything running on this Device, depth first, with its nesting depth.",
+        parameters=PAGINATION,
+        responses={200: page_of(VirtualDeviceSerializer), **errors(400, 401, 403, 404)},
+    )
+    def get(self, request, device_id):
+        entries = virtual_devices(request.user, device_id)
+        allowed_filters(request)
+        return paginated(request, self, entries, asdict)
