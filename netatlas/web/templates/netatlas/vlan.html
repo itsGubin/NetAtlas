@@ -1,0 +1,52 @@
+{% extends "netatlas/base.html" %}{% load i18n %}
+{% block title %}VLAN {{ vlan.number }} · {{ block.super }}{% endblock %}
+{% block content %}
+<h1>VLAN {{ vlan.number }}{% if vlan.name %} {{ vlan.name }}{% endif %}</h1>
+{% include "netatlas/_errors.html" %}
+{% if sites|length > 1 %}<p><a href="{% url 'web:site' vlan.site_id %}">{{ vlan.site_name }}</a></p>{% endif %}
+
+<h2>{% translate "Subnets" %}</h2>
+{% if usage.subnets %}
+<ul>
+  {% for item in usage.subnets %}<li><a href="{% url 'web:subnet' item.id %}">{{ item.cidr }}</a></li>{% endfor %}
+</ul>
+{% else %}
+<p>—</p>
+{% endif %}
+
+<h2>{% translate "Interfaces" %}</h2>
+{% if usage.interfaces %}
+<table>
+  <thead>
+    <tr><th scope="col">{% translate "Interface" %}</th><th scope="col">{% translate "Mode" %}</th></tr>
+  </thead>
+  <tbody>
+    {% for item in usage.interfaces %}
+    <tr>
+      <td><a href="{% url 'web:interface' item.id %}">{{ item.device_name }} {{ item.interface_name }}</a></td>
+      <td>{% if item.mode == "untagged" %}{% translate "untagged" %}{% else %}{% translate "tagged" %}{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p>—</p>
+{% endif %}
+
+{% if can_edit %}
+<h2>{% translate "Edit VLAN" %}</h2>
+<form method="post" action="{% url 'web:vlan' vlan.id %}">
+  {% csrf_token %}
+  <p><label>{% translate "Number" %} <input name="number" inputmode="numeric" value="{{ form.number|default:'' }}" required></label></p>
+  <p><label>{% translate "Name" %} <input name="name" value="{{ form.name|default:'' }}"></label></p>
+  <button type="submit">{% translate "Save" %}</button>
+</form>
+<form method="post" action="{% url 'web:vlan-delete' vlan.id %}">
+  {% csrf_token %}
+  <button type="submit">{% translate "Delete VLAN" %}</button>
+</form>
+{% endif %}
+
+<h2>{% translate "History" %}</h2>
+{% include "netatlas/_history.html" %}
+{% endblock %}

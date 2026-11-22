@@ -5,6 +5,8 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
+from django.db.models.signals import m2m_changed
+from django.dispatch import receiver
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
@@ -97,6 +99,12 @@ class TrackedModel(models.Model):
     def delete(self, *args, **kwargs):
         _require_tracked_write()
         return super().delete(*args, **kwargs)
+
+
+@receiver(m2m_changed)
+def _refuse_untracked_many_to_many(sender, instance, action, **kwargs):
+    if isinstance(instance, TrackedModel) and action.startswith("pre_"):
+        _require_tracked_write()
 
 
 class Change(models.Model):

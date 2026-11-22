@@ -15,6 +15,8 @@
   <dt>{% translate "Paired with" %}</dt>
   <dd><a href="{% url 'web:interface' interface.paired_interface_id %}">{{ interface.paired_interface_name }}</a></dd>
   {% endif %}
+  {% if interface.untagged_vlan %}<dt>{% translate "Untagged VLAN" %}</dt><dd><a href="{% url 'web:vlan' interface.untagged_vlan.id %}">{{ interface.untagged_vlan.number }}</a></dd>{% endif %}
+  {% if interface.tagged_vlans %}<dt>{% translate "Tagged VLANs" %}</dt><dd>{% for item in interface.tagged_vlans %}<a href="{% url 'web:vlan' item.id %}">{{ item.number }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}</dd>{% endif %}
 </dl>
 {% if is_physical %}<p><a href="{% url 'web:interface-trace' interface.id %}">{% translate "Trace cable path" %}</a></p>{% endif %}
 
@@ -52,6 +54,29 @@
 <form method="post" action="{% url 'web:interface-unpair' interface.id %}">
   {% csrf_token %}
   <button type="submit">{% translate "Remove pair" %}</button>
+</form>
+{% endif %}
+{% if vlan_choices %}
+<h2>{% translate "VLANs" %}</h2>
+<form method="post" action="{% url 'web:interface-vlans' interface.id %}">
+  {% csrf_token %}
+  <p>
+    <label>{% translate "Untagged VLAN" %}
+      <select name="untagged_vlan_id">
+        <option value="">{% translate "None" %}</option>
+        {% for item in vlan_choices %}
+        <option value="{{ item.id }}"{% if item.id == selected_untagged %} selected{% endif %}>{{ item.number }}{% if item.name %} {{ item.name }}{% endif %}</option>
+        {% endfor %}
+      </select>
+    </label>
+  </p>
+  <fieldset>
+    <legend>{% translate "Tagged VLANs" %}</legend>
+    {% for item in vlan_choices %}
+    <label><input type="checkbox" name="tagged_vlan_ids" value="{{ item.id }}"{% if item.id in selected_tagged %} checked{% endif %}> {{ item.number }}{% if item.name %} {{ item.name }}{% endif %}</label>
+    {% endfor %}
+  </fieldset>
+  <button type="submit">{% translate "Save VLANs" %}</button>
 </form>
 {% endif %}
 <h2>{% translate "Edit Interface" %}</h2>

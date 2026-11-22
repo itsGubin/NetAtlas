@@ -126,6 +126,12 @@ class NewDeviceTypeSerializer(DeviceTypeChangeSerializer):
     model_name = serializers.CharField(max_length=100)
 
 
+class VlanRefSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    number = serializers.IntegerField()
+    name = serializers.CharField(allow_blank=True)
+
+
 class InterfaceSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     device_id = serializers.IntegerField()
@@ -140,6 +146,8 @@ class InterfaceSerializer(serializers.Serializer):
     peer_device_name = serializers.CharField(allow_null=True)
     paired_interface_id = serializers.IntegerField(allow_null=True)
     paired_interface_name = serializers.CharField(allow_null=True)
+    untagged_vlan = VlanRefSerializer(allow_null=True)
+    tagged_vlans = VlanRefSerializer(many=True)
 
 
 class NewInterfaceSerializer(serializers.Serializer):
@@ -330,21 +338,85 @@ class SubnetSerializer(serializers.Serializer):
     parent_cidr = serializers.CharField(allow_null=True)
     depth = serializers.IntegerField(help_text="0 for a Subnet with no parent.")
     utilisation = serializers.FloatField(help_text="Percent, rounded down to one decimal.")
+    vlan_id = serializers.IntegerField(allow_null=True)
+    vlan_number = serializers.IntegerField(allow_null=True)
+    vlan_name = serializers.CharField(allow_null=True, allow_blank=True)
 
 
 class NewSubnetSerializer(serializers.Serializer):
     cidr = serializers.CharField(max_length=64)
     site_id = serializers.IntegerField()
+    vlan_id = serializers.IntegerField(required=False, allow_null=True)
 
 
 class SubnetChangeSerializer(serializers.Serializer):
     cidr = serializers.CharField(max_length=64, required=False)
     site_id = serializers.IntegerField(required=False)
+    vlan_id = serializers.IntegerField(required=False, allow_null=True)
 
 
 class SubnetFilterSerializer(serializers.Serializer):
     site = serializers.IntegerField(required=False)
     version = serializers.ChoiceField(choices=[4, 6], required=False)
+
+
+class VlanSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    number = serializers.IntegerField()
+    name = serializers.CharField(allow_blank=True)
+    site_id = serializers.IntegerField()
+    site_name = serializers.CharField()
+
+
+class NewVlanSerializer(serializers.Serializer):
+    number = serializers.IntegerField(min_value=1, max_value=4094)
+    site_id = serializers.IntegerField()
+    name = serializers.CharField(max_length=100, required=False, allow_blank=True)
+
+
+class VlanChangeSerializer(serializers.Serializer):
+    number = serializers.IntegerField(min_value=1, max_value=4094, required=False)
+    name = serializers.CharField(max_length=100, required=False, allow_blank=True)
+
+
+class VlanFilterSerializer(serializers.Serializer):
+    site = serializers.IntegerField(required=False)
+
+
+class VlanSubnetSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    cidr = serializers.CharField()
+
+
+class VlanInterfaceSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    interface_name = serializers.CharField()
+    device_id = serializers.IntegerField()
+    device_name = serializers.CharField()
+    mode = serializers.ChoiceField(choices=["untagged", "tagged"])
+
+
+class VlanUsageSerializer(serializers.Serializer):
+    vlan = VlanSerializer()
+    subnets = VlanSubnetSerializer(many=True)
+    interfaces = VlanInterfaceSerializer(many=True)
+
+
+class IdListField(serializers.ListField):
+    """A list of IDs. A bad entry is one message, keeping the standard field-error shape."""
+
+    child = serializers.IntegerField()
+
+    def run_child_validation(self, data):
+        try:
+            return super().run_child_validation(data)
+        except serializers.ValidationError as error:
+            raise serializers.ValidationError([_("Must be a list of IDs.")]) from error
+
+
+class InterfaceVlansSerializer(serializers.Serializer):
+    untagged_vlan_id = serializers.IntegerField(allow_null=True)
+    tagged_vlan_ids = IdListField(max_length=4094)
 
 
 class ErrorBodySerializer(serializers.Serializer):

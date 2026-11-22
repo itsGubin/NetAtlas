@@ -64,6 +64,8 @@
       <th scope="col">{% translate "Kind" %}</th>
       <th scope="col">{% translate "LAG" %}</th>
       <th scope="col">{% translate "Connected to" %}</th>
+      <th scope="col">{% translate "Untagged VLAN" %}</th>
+      <th scope="col">{% translate "Tagged VLANs" %}</th>
     </tr>
   </thead>
   <tbody>
@@ -73,6 +75,8 @@
       <td>{{ interface.kind }}</td>
       <td>{% if interface.lag_id %}<a href="{% url 'web:interface' interface.lag_id %}">{{ interface.lag_name }}</a>{% else %}—{% endif %}</td>
       <td>{% if interface.peer_interface_id %}<a href="{% url 'web:interface' interface.peer_interface_id %}">{{ interface.peer_device_name }} {{ interface.peer_interface_name }}</a>{% else %}—{% endif %}</td>
+      <td>{% if interface.untagged_vlan %}<a href="{% url 'web:vlan' interface.untagged_vlan.id %}">{{ interface.untagged_vlan.number }}</a>{% else %}—{% endif %}</td>
+      <td>{% for item in interface.tagged_vlans %}<a href="{% url 'web:vlan' item.id %}">{{ item.number }}</a>{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}</td>
     </tr>
     {% endfor %}
   </tbody>

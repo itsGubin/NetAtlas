@@ -8,6 +8,7 @@
   <dt>{% translate "IP version" %}</dt><dd>IPv{{ subnet.version }}</dd>
   {% if subnet.parent_id %}<dt>{% translate "Inside" %}</dt><dd><a href="{% url 'web:subnet' subnet.parent_id %}">{{ subnet.parent_cidr }}</a></dd>{% endif %}
   <dt>{% translate "Utilisation" %}</dt><dd>{{ subnet.utilisation }} %</dd>
+  {% if subnet.vlan_id %}<dt>{% translate "VLAN" %}</dt><dd><a href="{% url 'web:vlan' subnet.vlan_id %}">{{ subnet.vlan_number }}{% if subnet.vlan_name %} {{ subnet.vlan_name }}{% endif %}</a></dd>{% endif %}
 </dl>
 
 {% if children %}
@@ -25,6 +26,7 @@
   {% csrf_token %}
   <p><label>{% translate "CIDR" %} <input name="cidr" value="{{ form.cidr|default:'' }}" required></label></p>
   {% include "netatlas/_site_select.html" %}
+  {% include "netatlas/_vlan_select.html" %}
   <button type="submit">{% translate "Save" %}</button>
 </form>
 <form method="post" action="{% url 'web:subnet-delete' subnet.id %}">
