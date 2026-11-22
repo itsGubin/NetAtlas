@@ -1,0 +1,529 @@
+/* NetAtlas: one self-hosted stylesheet on semantic HTML. No external fonts or CDNs. */
+
+:root {
+  color-scheme: light dark;
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --sidebar: #1f2933;
+  --sidebar-text: #d5dce4;
+  --sidebar-hover: #323f4b;
+  --text: #1f2933;
+  --muted: #5b6875;
+  --border: #d9dee4;
+  --accent: #1d5fbf;
+  --accent-hover: #174c99;
+  --accent-text: #ffffff;
+  --accent-soft: #e6effb;
+  --danger: #a32020;
+  --danger-soft: #fdecec;
+  --radius: 6px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #14191f;
+    --surface: #1d242c;
+    --sidebar: #0f1317;
+    --sidebar-text: #c8d1da;
+    --sidebar-hover: #252e38;
+    --text: #e4e9ee;
+    --muted: #9aa7b4;
+    --border: #36414d;
+    --accent: #79aef5;
+    --accent-hover: #a3c8f8;
+    --accent-text: #10161d;
+    --accent-soft: #1f3250;
+    --danger: #ff9c9c;
+    --danger-soft: #3d2020;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+/* Shell: a sidebar once logged in, a centred card on the login page. */
+body > header {
+  background: var(--sidebar);
+  color: var(--sidebar-text);
+  padding: 12px 16px;
+}
+
+body > header > a {
+  color: #ffffff;
+  font-size: 18px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+body > header nav ul {
+  display: flex;
+  gap: 2px;
+  margin: 10px -16px;
+  padding: 0 16px 4px;
+  overflow-x: auto;
+  list-style: none;
+}
+
+body > header nav a {
+  display: block;
+  padding: 5px 10px;
+  border-radius: var(--radius);
+  color: var(--sidebar-text);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+body > header nav a:hover {
+  background: var(--sidebar-hover);
+  color: #ffffff;
+}
+
+body > header form {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+body > header form label {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+body > header input {
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+  border-color: #52606d;
+  background: var(--sidebar-hover);
+  color: #ffffff;
+}
+
+body > header button {
+  border-color: #52606d;
+  background: transparent;
+  color: var(--sidebar-text);
+}
+
+body > header button:hover {
+  background: var(--sidebar-hover);
+  color: #ffffff;
+}
+
+main {
+  width: 100%;
+  max-width: 1120px;
+  min-width: 0;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+/* The login page: one narrow column in the middle. */
+body:not(:has(> header nav)) main {
+  max-width: 380px;
+  margin-top: 8vh;
+}
+
+body:not(:has(> header nav)) main input:not([type="hidden"]) {
+  display: block;
+  width: 100%;
+  margin-top: 2px;
+}
+
+body:not(:has(> header nav)) main button {
+  width: 100%;
+}
+
+@media (min-width: 900px) {
+  body:has(> header nav) {
+    display: grid;
+    grid-template-columns: 220px minmax(0, 1fr);
+  }
+
+  body:has(> header nav) > header {
+    position: sticky;
+    top: 0;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    padding: 16px 12px;
+    overflow-y: auto;
+  }
+
+  body:has(> header nav) > header nav {
+    order: 2;
+    flex: 1;
+  }
+
+  body:has(> header nav) > header nav ul {
+    flex-direction: column;
+    margin: 12px 0;
+    padding: 0;
+    overflow: visible;
+  }
+
+  body:has(> header nav) > header form[role="search"] {
+    order: 1;
+    margin-top: 14px;
+  }
+
+  body:has(> header nav) > header form[role="search"] {
+    align-items: flex-end;
+  }
+
+  body:has(> header nav) > header form[role="search"] label {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 2px;
+    font-size: 12px;
+  }
+
+  body:has(> header nav) > header form[role="search"] input {
+    flex: none;
+    font-size: 14px;
+  }
+
+  body:has(> header nav) > header form:not([role="search"]) {
+    order: 3;
+  }
+
+  main {
+    padding: 28px 32px;
+  }
+}
+
+/* Text */
+h1,
+h2,
+h3 {
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+h1 {
+  margin: 0 0 16px;
+  font-size: 26px;
+}
+
+h2 {
+  margin: 28px 0 10px;
+  font-size: 19px;
+}
+
+h3 {
+  margin: 20px 0 8px;
+  font-size: 16px;
+}
+
+p {
+  margin: 8px 0;
+}
+
+small {
+  color: var(--muted);
+}
+
+a {
+  color: var(--accent);
+}
+
+a:hover {
+  color: var(--accent-hover);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+code,
+pre {
+  border-radius: 4px;
+  background: var(--accent-soft);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+}
+
+code {
+  padding: 1px 4px;
+  overflow-wrap: anywhere;
+}
+
+pre {
+  padding: 10px;
+  overflow-x: auto;
+}
+
+pre code {
+  padding: 0;
+  background: none;
+}
+
+dl {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 4px 16px;
+}
+
+dt {
+  color: var(--muted);
+}
+
+dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Tables scroll on their own, so a wide one never widens the page. */
+table {
+  display: block;
+  max-width: 100%;
+  margin: 8px 0 16px;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  border-spacing: 0;
+  background: var(--surface);
+}
+
+caption {
+  padding: 8px 10px;
+  font-weight: 600;
+  text-align: left;
+}
+
+th,
+td {
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+
+thead th {
+  background: var(--accent-soft);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+tbody tr:last-child > * {
+  border-bottom: 0;
+}
+
+/* The name column stays readable, and the table scrolls instead. */
+tbody td:first-child {
+  min-width: 150px;
+}
+
+/* Rack elevation: the two faces side by side, each Device one block. */
+table[data-face] {
+  display: inline-table;
+  width: min(100%, 320px);
+  margin-right: 12px;
+  vertical-align: top;
+}
+
+table[data-face] tbody th {
+  width: 48px;
+  color: var(--muted);
+  font-weight: 400;
+  text-align: right;
+}
+
+table[data-face] td {
+  width: 240px;
+}
+
+table[data-face] td[rowspan] {
+  border-left: 3px solid var(--accent);
+  background: var(--accent-soft);
+  font-weight: 600;
+}
+
+/* Forms */
+input,
+select,
+textarea,
+button {
+  max-width: 100%;
+  font: inherit;
+}
+
+input,
+select,
+textarea {
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+}
+
+textarea {
+  display: block;
+  width: 100%;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 14px;
+}
+
+input[type="file"] {
+  padding: 4px;
+}
+
+button {
+  padding: 6px 14px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: var(--accent-text);
+  cursor: pointer;
+}
+
+button:hover {
+  border-color: var(--accent-hover);
+  background: var(--accent-hover);
+}
+
+main form {
+  margin: 8px 0;
+}
+
+main li > form {
+  display: inline-block;
+  margin: 0 0 0 6px;
+}
+
+main li > form button {
+  padding: 1px 8px;
+  border-color: var(--border);
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+/* Page content */
+article {
+  margin: 10px 0;
+  padding: 14px 18px;
+  overflow-wrap: anywhere;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+article:empty {
+  min-height: 48px;
+}
+
+article > :first-child {
+  margin-top: 0;
+}
+
+article > :last-child {
+  margin-bottom: 0;
+}
+
+article img {
+  max-width: 100%;
+  height: auto;
+}
+
+.live-field {
+  padding: 0 4px;
+  border-radius: 4px;
+  background: var(--accent-soft);
+}
+
+mark {
+  padding: 0 4px;
+  border-radius: 4px;
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+/* Messages */
+[role="alert"] {
+  margin: 10px 0;
+  padding: 10px 14px;
+  border: 1px solid var(--danger);
+  border-radius: var(--radius);
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+ul[role="alert"] {
+  padding-left: 30px;
+}
+
+[role="alert"] h2 {
+  margin-top: 0;
+}
+
+[role="status"] {
+  color: var(--muted);
+}
+
+/* The `@` picker */
+#mention-options {
+  max-height: 240px;
+  margin: 4px 0;
+  padding: 4px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  list-style: none;
+}
+
+#mention-options [role="option"] {
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+#mention-options [role="option"][aria-selected="true"] {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+/* Tag filter and History */
+main nav a[aria-current] {
+  font-weight: 700;
+}
+
+section[data-history-action] {
+  margin: 10px 0;
+}
+
+section[data-history-action] h2 {
+  margin: 12px 0 4px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+section[data-history-action] td {
+  max-width: 420px;
+  overflow-wrap: anywhere;
+}
