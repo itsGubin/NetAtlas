@@ -14,7 +14,7 @@ from django.http import Http404
 from django.utils.translation import gettext as _
 
 from netatlas.accounts.services import require_editor, require_role
-from netatlas.devices.models import Cable, Device, DeviceType, Interface
+from netatlas.devices.models import Cable, Device, DeviceType, Interface, Rack
 from netatlas.history.services import create_item, delete_item, update_item
 
 INTERFACE_KINDS = ("physical", "virtual", "lag")
@@ -27,6 +27,7 @@ _NAME = re.compile(r"[^\s\x00-\x1f\x7f]{1,64}")
 _UPDATABLE_DEVICE_FIELDS = {"name", "site_id", "parent_id", "rack_height"}
 _UPDATABLE_INTERFACE_FIELDS = {"name", "kind", "lag_id"}
 _UPDATABLE_CABLE_FIELDS = {"label"}
+_UPDATABLE_RACK_FIELDS = {"name", "height"}
 _INTERFACE_RELATIONS = (
     "interfaces__lag",
     "interfaces__paired_with",
@@ -114,7 +115,44 @@ class DeviceSummary:
     device_type_id: int | None
     device_type_name: str | None
     rack_height: int
+    rack_id: int | None
+    rack_name: str | None
+    rack_unit: int | None
+    rack_face: str
     interfaces: list[InterfaceSummary]
+
+
+@dataclass(frozen=True)
+class RackSummary:
+    id: int
+    name: str
+    site_id: int
+    site_name: str
+    height: int
+
+
+@dataclass(frozen=True)
+class ElevationUnit:
+    unit: int
+    device_id: int | None
+    device_name: str | None
+    span: int
+    # True for the lower units of a taller Device, which are drawn as part of its top unit.
+    is_covered: bool
+
+
+@dataclass(frozen=True)
+class RackedDevice:
+    id: int
+    name: str
+
+
+@dataclass(frozen=True)
+class RackElevation:
+    rack: RackSummary
+    front: list[ElevationUnit]
+    rear: list[ElevationUnit]
+    zero_height: list[RackedDevice]
 
 
 @dataclass(frozen=True)
@@ -181,7 +219,7 @@ def list_devices(
 ) -> list[DeviceSummary]:
     require_role(actor)
     devices = (
-        Device.objects.select_related("site", "parent", "device_type")
+        Device.objects.select_related("site", "parent", "device_type", "rack")
         .prefetch_related(*_INTERFACE_RELATIONS)
         .order_by("name", "pk")
     )
@@ -241,6 +279,8 @@ def update_device(actor, device_id: int, **values) -> DeviceSummary:
                 values["rack_height"] = _virtual_height(values["rack_height"])
         elif values.get("parent_id") is not None:
             raise _field_error("parent_id", _("A Physical Device has no Hypervisor."))
+        elif device.rack_id:
+            _check_racked_device_change(device, values)
 
         updated = update_item(actor, device, **values)
         if updated.site_id != device.site_id:
@@ -315,6 +355,182 @@ def delete_interface(actor, interface_id: int) -> None:
     with transaction.atomic():
         _lock_device_tree()
         delete_item(actor, _find_interface(interface_id))
+
+
+def list_racks(actor, site_id: int | None = None) -> list[RackSummary]:
+    require_role(actor)
+    racks = Rack.objects.select_related("site").order_by("site__name", "name", "pk")
+    if site_id is not None:
+        racks = racks.filter(site_id=site_id)
+    return [_rack_summary(rack) for rack in racks]
+
+
+def get_rack(actor, rack_id: int) -> RackSummary:
+    require_role(actor)
+    return _rack_summary(_find_rack(rack_id))
+
+
+def create_rack(actor, name: str, site_id: int, height: int = 42) -> RackSummary:
+    require_editor(actor)
+    with transaction.atomic():
+        _lock_device_tree()
+        rack = create_item(actor, Rack, name=name, site_id=site_id, height=height)
+    return _rack_summary(_find_rack(rack.pk))
+
+
+def update_rack(actor, rack_id: int, **values) -> RackSummary:
+    """Rename or resize a Rack. It cannot shrink below its highest Device."""
+    require_editor(actor)
+    unknown = set(values) - _UPDATABLE_RACK_FIELDS
+    if unknown:
+        raise TypeError(f"Cannot update {', '.join(sorted(unknown))} on a Rack")
+    with transaction.atomic():
+        _lock_device_tree()
+        rack = _find_rack(rack_id)
+        if "height" in values:
+            placed = rack.devices.filter(rack_unit__isnull=False)
+            highest = max((d.rack_unit + d.rack_height - 1 for d in placed), default=0)
+            if values["height"] < highest:
+                message = _("A Device reaches unit %(unit)d of this Rack.") % {"unit": highest}
+                raise _field_error("height", message)
+        update_item(actor, rack, **values)
+    return _rack_summary(_find_rack(rack_id))
+
+
+def delete_rack(actor, rack_id: int) -> None:
+    """Delete an empty Rack. Devices must be taken out first, so no position is lost."""
+    require_editor(actor)
+    with transaction.atomic():
+        _lock_device_tree()
+        rack = _find_rack(rack_id)
+        names = sorted(device.name for device in rack.devices.all())
+        if names:
+            raise ValidationError(
+                _("Take these Devices out of the Rack first: %(names)s")
+                % {"names": ", ".join(names)}
+            )
+        delete_item(actor, rack)
+
+
+def place_device(
+    actor, device_id: int, rack_id: int, unit: int | None = None, face: str | None = None
+) -> DeviceSummary:
+    """Place or move a Physical Device. A zero-height Device is in the Rack without a position."""
+    require_editor(actor)
+    with transaction.atomic():
+        _lock_device_tree()
+        device = _find_device(device_id)
+        if device.kind != Device.Kind.PHYSICAL:
+            raise _field_error("rack_id", _("Only a Physical Device can be placed in a Rack."))
+        rack = _reference(Rack, rack_id, "rack_id")
+        if rack.site_id != device.site_id:
+            raise _field_error("rack_id", _("Choose a Rack in the Device's Site."))
+
+        if device.rack_height == 0:
+            if unit is not None or face:
+                message = _("A zero-height Device is in the Rack without a position.")
+                raise _field_error("unit", message)
+        else:
+            if unit is None:
+                raise _field_error("unit", _("Choose a unit."))
+            if face not in Device.Face.values:
+                raise _field_error("face", _("Choose the front or rear Face."))
+            problem = _position_problem(rack, device.pk, unit, device.rack_height, face)
+            if problem:
+                raise _field_error("unit", problem)
+        update_item(actor, device, rack_id=rack.pk, rack_unit=unit, rack_face=face or "")
+    return _device_summary(_find_device(device_id))
+
+
+def unrack_device(actor, device_id: int) -> DeviceSummary:
+    require_editor(actor)
+    with transaction.atomic():
+        _lock_device_tree()
+        update_item(actor, _find_device(device_id), rack_id=None, rack_unit=None, rack_face="")
+    return _device_summary(_find_device(device_id))
+
+
+def rack_elevation(actor, rack_id: int) -> RackElevation:
+    """Both Faces of a Rack from the top unit down, plus its zero-height Devices."""
+    require_role(actor)
+    rack = _find_rack(rack_id)
+    devices = list(rack.devices.order_by("name", "pk"))
+    return RackElevation(
+        rack=_rack_summary(rack),
+        front=_elevation_units(rack, devices, Device.Face.FRONT),
+        rear=_elevation_units(rack, devices, Device.Face.REAR),
+        zero_height=[RackedDevice(id=d.pk, name=d.name) for d in devices if d.rack_unit is None],
+    )
+
+
+def _elevation_units(rack, devices, face: str) -> list[ElevationUnit]:
+    occupied = {}
+    for device in devices:
+        if device.rack_unit is not None and device.rack_face == face:
+            top = device.rack_unit + device.rack_height - 1
+            for unit in range(device.rack_unit, top + 1):
+                occupied[unit] = (device, unit != top)
+
+    units = []
+    for unit in range(rack.height, 0, -1):
+        device, is_covered = occupied.get(unit, (None, False))
+        units.append(
+            ElevationUnit(
+                unit=unit,
+                device_id=device.pk if device else None,
+                device_name=device.name if device else None,
+                span=device.rack_height if device else 1,
+                is_covered=is_covered,
+            )
+        )
+    return units
+
+
+def _check_racked_device_change(device, values: dict) -> None:
+    if values.get("site_id", device.site_id) != device.site_id:
+        raise _field_error("site_id", _("Take this Device out of its Rack before moving it."))
+    height = values.get("rack_height", device.rack_height)
+    if height == device.rack_height:
+        return
+    if height == 0 or device.rack_height == 0:
+        message = _("Take this Device out of its Rack before changing to or from zero height.")
+        raise _field_error("rack_height", message)
+    problem = _position_problem(
+        device.rack, device.pk, device.rack_unit, height, device.rack_face
+    )
+    if problem:
+        raise _field_error("rack_height", problem)
+
+
+def _position_problem(rack, device_id: int, unit: int, height: int, face: str) -> str | None:
+    """Why a Device cannot occupy these units on this Face, or None if it can."""
+    top = unit + height - 1
+    if unit < 1 or top > rack.height:
+        return _("This Device does not fit: the Rack has units 1 to %(height)d.") % {
+            "height": rack.height
+        }
+    others = rack.devices.filter(rack_face=face, rack_unit__lte=top).exclude(pk=device_id)
+    names = sorted(d.name for d in others if d.rack_unit + d.rack_height - 1 >= unit)
+    if names:
+        return _("These units are taken by: %(names)s") % {"names": ", ".join(names)}
+    return None
+
+
+def _find_rack(rack_id: int):
+    rack = Rack.objects.select_related("site").filter(pk=rack_id).first()
+    if rack is None:
+        raise Http404
+    return rack
+
+
+def _rack_summary(rack) -> RackSummary:
+    return RackSummary(
+        id=rack.pk,
+        name=rack.name,
+        site_id=rack.site_id,
+        site_name=rack.site.name,
+        height=rack.height,
+    )
 
 
 def list_cables(actor, device_id: int | None = None) -> list[CableSummary]:
@@ -621,7 +837,7 @@ def _field_error(field: str, message: str) -> ValidationError:
 
 def _find_device(device_id: int):
     device = (
-        Device.objects.select_related("site", "parent", "device_type")
+        Device.objects.select_related("site", "parent", "device_type", "rack")
         .prefetch_related(*_INTERFACE_RELATIONS)
         .filter(pk=device_id)
         .first()
@@ -643,6 +859,10 @@ def _device_summary(device) -> DeviceSummary:
         device_type_id=device.device_type_id,
         device_type_name=str(device.device_type) if device.device_type else None,
         rack_height=device.rack_height,
+        rack_id=device.rack_id,
+        rack_name=device.rack.name if device.rack_id else None,
+        rack_unit=device.rack_unit,
+        rack_face=device.rack_face,
         interfaces=[
             _interface_summary(interface)
             for interface in sorted(device.interfaces.all(), key=lambda i: i.pk)

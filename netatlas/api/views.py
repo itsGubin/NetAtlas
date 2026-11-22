@@ -36,6 +36,7 @@ from netatlas.api.serializers import (
     CustomerSerializer,
     DeviceChangeSerializer,
     DeviceFilterSerializer,
+    DevicePlacementSerializer,
     DeviceSerializer,
     DeviceTypeChangeSerializer,
     DeviceTypeSerializer,
@@ -47,9 +48,14 @@ from netatlas.api.serializers import (
     NewDeviceSerializer,
     NewDeviceTypeSerializer,
     NewInterfaceSerializer,
+    NewRackSerializer,
     NewSiteSerializer,
     NewTokenSerializer,
     NewUserSerializer,
+    RackChangeSerializer,
+    RackElevationSerializer,
+    RackFilterSerializer,
+    RackSerializer,
     RoleChangeSerializer,
     SiteChangeSerializer,
     SiteFilterSerializer,
@@ -66,25 +72,33 @@ from netatlas.devices.services import (
     create_device,
     create_device_type,
     create_interface,
+    create_rack,
     delete_cable,
     delete_device,
     delete_device_type,
     delete_interface,
+    delete_rack,
     get_cable,
     get_device,
     get_device_type,
     get_interface,
+    get_rack,
     list_cables,
     list_device_types,
     list_devices,
     list_interfaces,
+    list_racks,
     pair_interfaces,
+    place_device,
+    rack_elevation,
     trace_interface,
     unpair_interface,
+    unrack_device,
     update_cable,
     update_device,
     update_device_type,
     update_interface,
+    update_rack,
     virtual_devices,
 )
 from netatlas.history.services import item_history
@@ -507,6 +521,83 @@ class InterfacePairView(APIView):
     def delete(self, request, interface_id):
         unpair_interface(request.user, interface_id)
         return Response(status=http_status.HTTP_204_NO_CONTENT)
+
+
+class DevicePlacementView(APIView):
+    @extend_schema(
+        description="Place or move a Physical Device. Overlaps on the same Face are refused.",
+        request=DevicePlacementSerializer,
+        responses={200: DeviceSerializer, **errors(400, 401, 403, 404)},
+    )
+    def put(self, request, device_id):
+        require_editor(request.user)
+        body = DevicePlacementSerializer(data=request.data)
+        body.is_valid(raise_exception=True)
+        return Response(asdict(place_device(request.user, device_id, **body.validated_data)))
+
+    @extend_schema(responses={204: None, **errors(401, 403, 404)})
+    def delete(self, request, device_id):
+        unrack_device(request.user, device_id)
+        return Response(status=http_status.HTTP_204_NO_CONTENT)
+
+
+class RackListView(APIView):
+    @extend_schema(
+        operation_id="racks_list",
+        parameters=[*PAGINATION, OpenApiParameter("site", int)],
+        responses={200: page_of(RackSerializer), **errors(400, 401, 403)},
+    )
+    def get(self, request):
+        require_role(request.user)
+        filters = RackFilterSerializer(data=allowed_filters(request, "site"))
+        filters.is_valid(raise_exception=True)
+        racks = list_racks(request.user, site_id=filters.validated_data.get("site"))
+        return paginated(request, self, racks, asdict)
+
+    @extend_schema(
+        request=NewRackSerializer,
+        responses={201: RackSerializer, **errors(400, 401, 403)},
+    )
+    def post(self, request):
+        require_editor(request.user)
+        body = NewRackSerializer(data=request.data)
+        body.is_valid(raise_exception=True)
+        rack = create_rack(request.user, **body.validated_data)
+        return Response(asdict(rack), status=http_status.HTTP_201_CREATED)
+
+
+class RackDetailView(APIView):
+    @extend_schema(responses={200: RackSerializer, **errors(401, 403, 404)})
+    def get(self, request, rack_id):
+        return Response(asdict(get_rack(request.user, rack_id)))
+
+    @extend_schema(
+        description="A Rack cannot shrink below its highest Device.",
+        request=RackChangeSerializer,
+        responses={200: RackSerializer, **errors(400, 401, 403, 404)},
+    )
+    def patch(self, request, rack_id):
+        require_editor(request.user)
+        body = RackChangeSerializer(data=request.data)
+        body.is_valid(raise_exception=True)
+        return Response(asdict(update_rack(request.user, rack_id, **body.validated_data)))
+
+    @extend_schema(
+        description="A Rack that still holds Devices cannot be deleted.",
+        responses={204: None, **errors(400, 401, 403, 404)},
+    )
+    def delete(self, request, rack_id):
+        delete_rack(request.user, rack_id)
+        return Response(status=http_status.HTTP_204_NO_CONTENT)
+
+
+class RackElevationView(APIView):
+    @extend_schema(
+        description="Both Faces from the top unit down, plus zero-height Devices.",
+        responses={200: RackElevationSerializer, **errors(401, 403, 404)},
+    )
+    def get(self, request, rack_id):
+        return Response(asdict(rack_elevation(request.user, rack_id)))
 
 
 class CableListView(APIView):

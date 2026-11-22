@@ -1,0 +1,35 @@
+{% extends "netatlas/base.html" %}{% load i18n %}
+{% block title %}{% translate "Racks" %} · {{ block.super }}{% endblock %}
+{% block content %}
+<h1>{% translate "Racks" %}</h1>
+{% include "netatlas/_errors.html" %}
+<table>
+  <thead>
+    <tr>
+      <th scope="col">{% translate "Name" %}</th>
+      {% if sites|length > 1 %}<th scope="col">{% translate "Site" %}</th>{% endif %}
+      <th scope="col">{% translate "Height (U)" %}</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for item in racks %}
+    <tr>
+      <td><a href="{% url 'web:rack' item.id %}">{{ item.name }}</a></td>
+      {% if sites|length > 1 %}<td>{{ item.site_name }}</td>{% endif %}
+      <td>{{ item.height }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% if can_edit %}
+<h2>{% translate "Add Rack" %}</h2>
+<form method="post" action="{% url 'web:racks' %}">
+  {% csrf_token %}
+  <p><label>{% translate "Name" %} <input name="name" value="{{ form.name|default:'' }}" required></label></p>
+  {% include "netatlas/_site_select.html" %}
+  <p><label>{% translate "Height (U)" %} <input name="height" inputmode="numeric" value="{{ form.height }}" required></label></p>
+  <button type="submit">{% translate "Add Rack" %}</button>
+</form>
+{% endif %}
+{% endblock %}

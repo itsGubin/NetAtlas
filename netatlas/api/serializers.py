@@ -165,6 +165,10 @@ class DeviceSerializer(serializers.Serializer):
     device_type_id = serializers.IntegerField(allow_null=True)
     device_type_name = serializers.CharField(allow_null=True)
     rack_height = serializers.IntegerField()
+    rack_id = serializers.IntegerField(allow_null=True)
+    rack_name = serializers.CharField(allow_null=True)
+    rack_unit = serializers.IntegerField(allow_null=True, help_text="The Device's lowest unit.")
+    rack_face = serializers.CharField(allow_blank=True, help_text="`front`, `rear` or empty.")
     interfaces = InterfaceSerializer(many=True)
 
 
@@ -253,6 +257,64 @@ class TraceHopSerializer(serializers.Serializer):
 class CableTraceSerializer(serializers.Serializer):
     hops = TraceHopSerializer(many=True)
     is_loop = serializers.BooleanField()
+
+
+class RackSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    name = serializers.CharField()
+    site_id = serializers.IntegerField()
+    site_name = serializers.CharField()
+    height = serializers.IntegerField()
+
+
+class NewRackSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=100)
+    site_id = serializers.IntegerField()
+    height = serializers.IntegerField(min_value=1, max_value=100, required=False)
+
+
+class RackChangeSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=100, required=False)
+    height = serializers.IntegerField(min_value=1, max_value=100, required=False)
+
+
+class RackFilterSerializer(serializers.Serializer):
+    site = serializers.IntegerField(required=False)
+
+
+class DevicePlacementSerializer(serializers.Serializer):
+    rack_id = serializers.IntegerField()
+    unit = serializers.IntegerField(
+        required=False, allow_null=True, help_text="Lowest unit. Omit for a zero-height Device."
+    )
+    face = serializers.ChoiceField(
+        choices=["front", "rear"],
+        required=False,
+        allow_null=True,
+        help_text="Omit for a zero-height Device.",
+    )
+
+
+class ElevationUnitSerializer(serializers.Serializer):
+    unit = serializers.IntegerField()
+    device_id = serializers.IntegerField(allow_null=True)
+    device_name = serializers.CharField(allow_null=True)
+    span = serializers.IntegerField()
+    is_covered = serializers.BooleanField(
+        help_text="True for the lower units of a taller Device."
+    )
+
+
+class RackedDeviceSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    name = serializers.CharField()
+
+
+class RackElevationSerializer(serializers.Serializer):
+    rack = RackSerializer()
+    front = ElevationUnitSerializer(many=True)
+    rear = ElevationUnitSerializer(many=True)
+    zero_height = RackedDeviceSerializer(many=True)
 
 
 class ErrorBodySerializer(serializers.Serializer):

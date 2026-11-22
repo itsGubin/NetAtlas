@@ -9,7 +9,43 @@
   {% if device.parent_id %}<dt>{% translate "Hypervisor" %}</dt><dd><a href="{% url 'web:device' device.parent_id %}">{{ device.parent_name }}</a></dd>{% endif %}
   {% if device.device_type_id %}<dt>{% translate "Device Type" %}</dt><dd><a href="{% url 'web:device-type' device.device_type_id %}">{{ device.device_type_name }}</a></dd>{% endif %}
   <dt>{% translate "Rack height (U)" %}</dt><dd>{{ device.rack_height }}</dd>
+  {% if device.rack_id %}
+  <dt>{% translate "Rack" %}</dt>
+  <dd><a href="{% url 'web:rack' device.rack_id %}">{{ device.rack_name }}</a>{% if device.rack_unit %} · {% translate "unit" %} {{ device.rack_unit }} · {{ device.rack_face }}{% endif %}</dd>
+  {% endif %}
 </dl>
+
+{% if can_edit and racks %}
+<h2>{% translate "Rack Position" %}</h2>
+<form method="post" action="{% url 'web:device-placement' device.id %}">
+  {% csrf_token %}
+  <p>
+    <label>{% translate "Rack" %}
+      <select name="rack_id" required>
+        {% for item in racks %}<option value="{{ item.id }}"{% if item.id == selected_rack %} selected{% endif %}>{{ item.name }}</option>{% endfor %}
+      </select>
+    </label>
+  </p>
+  {% if device.rack_height %}
+  <p><label>{% translate "Lowest unit" %} <input name="unit" inputmode="numeric" value="{{ placement.unit }}" required></label></p>
+  <p>
+    <label>{% translate "Face" %}
+      <select name="face">
+        <option value="front"{% if placement.face == "front" %} selected{% endif %}>{% translate "Front" %}</option>
+        <option value="rear"{% if placement.face == "rear" %} selected{% endif %}>{% translate "Rear" %}</option>
+      </select>
+    </label>
+  </p>
+  {% endif %}
+  <button type="submit">{% translate "Place in Rack" %}</button>
+</form>
+{% if device.rack_id %}
+<form method="post" action="{% url 'web:device-unrack' device.id %}">
+  {% csrf_token %}
+  <button type="submit">{% translate "Take out of Rack" %}</button>
+</form>
+{% endif %}
+{% endif %}
 
 {% if virtual_devices %}
 <h2>{% translate "Virtual Devices" %}</h2>

@@ -91,6 +91,17 @@ Every error has the same shape. `fields` lists messages per field and is empty f
 - `kind` cannot change while the Interface is in a LAG, or is a LAG with members.
 - Deleting a LAG keeps its members, without a LAG, and records that in their History.
 
+## Racks
+
+`/api/racks/` supports list, create, read, `PATCH` (name and height) and delete. Lists filter by `site`. Every Role can read. Admins and Editors can write.
+
+- Rack names are unique within a Site. Height is 1 to 100 units, numbered from 1 at the bottom, and cannot shrink below the highest Device.
+- `PUT /api/devices/<id>/placement/` with `{"rack_id", "unit", "face"}` places or moves a Physical Device in a Rack of its Site. `unit` is its lowest unit and `face` is `front` or `rear`. `DELETE` takes it out.
+- A Device occupies its units on its own Face only, so front and rear can share a unit. Overlaps on one Face are refused.
+- A zero-height Device is placed with `rack_id` alone.
+- A racked Device must be taken out before it changes Site or switches to or from zero height. A Rack holding Devices cannot be deleted.
+- `GET /api/racks/<id>/elevation/` returns `front` and `rear` from the top unit down, plus `zero_height`. A taller Device has `span` on its top unit and `is_covered` on the units below.
+
 ## Cables
 
 `/api/cables/` supports list, create, read, `PATCH` (label only) and delete. Lists filter by `device`. Every Role can read. Admins and Editors can write.

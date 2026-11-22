@@ -52,6 +52,18 @@ urlpatterns = [
         views.InterfacePairView.as_view(),
         name="interface-pair",
     ),
+    path(
+        "devices/<int:device_id>/placement/",
+        views.DevicePlacementView.as_view(),
+        name="device-placement",
+    ),
+    path("racks/", views.RackListView.as_view(), name="rack-list"),
+    path("racks/<int:rack_id>/", views.RackDetailView.as_view(), name="rack-detail"),
+    path(
+        "racks/<int:rack_id>/elevation/",
+        views.RackElevationView.as_view(),
+        name="rack-elevation",
+    ),
     path("cables/", views.CableListView.as_view(), name="cable-list"),
     path("cables/<int:cable_id>/", views.CableDetailView.as_view(), name="cable-detail"),
 ]

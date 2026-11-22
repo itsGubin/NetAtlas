@@ -1,0 +1,40 @@
+{% extends "netatlas/base.html" %}{% load i18n %}
+{% block title %}{{ rack.name }} · {{ block.super }}{% endblock %}
+{% block content %}
+<h1>{{ rack.name }}</h1>
+{% include "netatlas/_errors.html" %}
+<p><a href="{% url 'web:site' rack.site_id %}">{{ rack.site_name }}</a> · {{ rack.height }} U</p>
+
+<h2>{% translate "Elevation" %}</h2>
+{% translate "Front" as front_label %}{% translate "Rear" as rear_label %}
+{% include "netatlas/_rack_face.html" with units=elevation.front face="front" face_label=front_label %}
+{% include "netatlas/_rack_face.html" with units=elevation.rear face="rear" face_label=rear_label %}
+
+<h3>{% translate "Zero-height Devices" %}</h3>
+{% if elevation.zero_height %}
+<ul>
+  {% for item in elevation.zero_height %}
+  <li><a href="{% url 'web:device' item.id %}">{{ item.name }}</a></li>
+  {% endfor %}
+</ul>
+{% else %}
+<p>—</p>
+{% endif %}
+
+{% if can_edit %}
+<h2>{% translate "Edit Rack" %}</h2>
+<form method="post" action="{% url 'web:rack' rack.id %}">
+  {% csrf_token %}
+  <p><label>{% translate "Name" %} <input name="name" value="{{ form.name|default:'' }}" required></label></p>
+  <p><label>{% translate "Height (U)" %} <input name="height" inputmode="numeric" value="{{ form.height }}" required></label></p>
+  <button type="submit">{% translate "Save" %}</button>
+</form>
+<form method="post" action="{% url 'web:rack-delete' rack.id %}">
+  {% csrf_token %}
+  <button type="submit">{% translate "Delete Rack" %}</button>
+</form>
+{% endif %}
+
+<h2>{% translate "History" %}</h2>
+{% include "netatlas/_history.html" %}
+{% endblock %}
