@@ -13,6 +13,21 @@ class UserRole(models.Model):
     role = models.CharField(max_length=16, choices=Role.choices)
 
 
+class OidcIdentity(models.Model):
+    """Ties a provider's account to a user. Issuer and subject are its only stable identity."""
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="oidc_identity"
+    )
+    issuer = models.CharField(max_length=255)
+    subject = models.CharField(max_length=255)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["issuer", "subject"], name="unique_oidc_identity")
+        ]
+
+
 class ApiToken(models.Model):
     """A named API credential. Only a hash of the secret is stored."""
 

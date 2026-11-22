@@ -11,7 +11,7 @@ cp .env.example .env   # then set the secret key, database password and first Ad
 docker compose up -d
 ```
 
-NetAtlas is then on http://localhost:8000. `GET /api/status/` reports the version and whether the database is reachable (503 when it isn't). The REST API is described in [docs/api.md](docs/api.md).
+NetAtlas is then on http://localhost:8000. `GET /api/status/` reports the version and whether the database is reachable (503 when it isn't). The REST API is described in [docs/api.md](docs/api.md). To log in through Authentik, Keycloak, Entra ID or Google, see [docs/oidc.md](docs/oidc.md).
 
 ## Develop
 

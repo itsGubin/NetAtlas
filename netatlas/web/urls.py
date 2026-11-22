@@ -7,6 +7,8 @@ app_name = "web"
 
 urlpatterns = [
     path("login/", LoginView.as_view(template_name="netatlas/login.html"), name="login"),
+    path("login/oidc/", views.oidc_login, name="oidc-login"),
+    path("login/oidc/callback/", views.oidc_callback, name="oidc-callback"),
     path("logout/", LogoutView.as_view(), name="logout"),
     path("", views.home, name="home"),
     path("search/", views.search_page, name="search"),
