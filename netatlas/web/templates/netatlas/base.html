@@ -25,6 +25,7 @@
         <li><a href="{% url 'web:pages' %}">{% translate "Pages" %}</a></li>
         <li><a href="{% url 'web:page-templates' %}">{% translate "Page Templates" %}</a></li>
         <li><a href="{% url 'web:tags' %}">{% translate "Tags" %}</a></li>
+        {% if can_edit %}<li><a href="{% url 'web:imports' %}">{% translate "CSV import" %}</a></li>{% endif %}
         <li><a href="{% url 'web:status' %}">{% translate "Status" %}</a></li>
         <li><a href="{% url 'web:tokens' %}">{% translate "API tokens" %}</a></li>
         {% if is_admin %}<li><a href="{% url 'web:users' %}">{% translate "Users" %}</a></li>{% endif %}

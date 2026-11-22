@@ -1,0 +1,87 @@
+{% extends "netatlas/base.html" %}{% load i18n %}
+{% block title %}{% translate "CSV import" %} · {{ block.super }}{% endblock %}
+{% block content %}
+<h1>{% translate "CSV import" %}</h1>
+{% include "netatlas/_errors.html" %}
+
+{% if step == "upload" %}
+<form method="post" action="{% url 'web:imports' %}" enctype="multipart/form-data">
+  {% csrf_token %}
+  <input type="hidden" name="step" value="upload">
+  <p><label>{% translate "Import" %}
+    <select name="kind" required>
+      {% for option in kinds %}<option value="{{ option.value }}"{% if option.value == kind %} selected{% endif %}>{{ option.label }}</option>{% endfor %}
+    </select>
+  </label></p>
+  <p><label>{% translate "CSV file" %} <input type="file" name="file" accept=".csv,text/csv" required></label></p>
+  <button type="submit">{% translate "Continue" %}</button>
+</form>
+<p><small>{% blocktranslate %}The first row must name the columns. Comma, semicolon and tab separated files work, up to {{ max_rows }} rows. An import only adds new items.{% endblocktranslate %}</small></p>
+{% endif %}
+
+{% if step == "map" %}
+<h2>{% blocktranslate with name=kind_name count rows=columns.row_count %}Match columns for {{ rows }} {{ name }} row{% plural %}Match columns for {{ rows }} {{ name }} rows{% endblocktranslate %}</h2>
+<form method="post" action="{% url 'web:imports' %}" enctype="multipart/form-data">
+  {% csrf_token %}
+  <input type="hidden" name="step" value="preview">
+  <input type="hidden" name="kind" value="{{ kind }}">
+  <input type="hidden" name="csv" value="{{ csv }}">
+  <table>
+    <thead><tr><th scope="col">{% translate "Field" %}</th><th scope="col">{% translate "Column" %}</th></tr></thead>
+    <tbody>
+      {% for field in fields %}
+      <tr>
+        <td><label for="map-{{ field.name }}">{{ field.label }}{% if field.required %} *{% endif %}</label></td>
+        <td>
+          <select id="map-{{ field.name }}" name="map_{{ field.name }}"{% if field.required %} required{% endif %}>
+            <option value="">{% translate "Not imported" %}</option>
+            {% for header in columns.headers %}<option value="{{ header }}"{% if header == field.selected %} selected{% endif %}>{{ header }}</option>{% endfor %}
+          </select>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <button type="submit">{% translate "Preview" %}</button>
+</form>
+<h3>{% translate "First rows of the file" %}</h3>
+<table>
+  <thead><tr>{% for header in columns.headers %}<th scope="col">{{ header }}</th>{% endfor %}</tr></thead>
+  <tbody>{% for cells in columns.sample %}<tr>{% for cell in cells %}<td>{{ cell }}</td>{% endfor %}</tr>{% endfor %}</tbody>
+</table>
+<p><a href="{% url 'web:imports' %}">{% translate "Start over" %}</a></p>
+{% endif %}
+
+{% if step == "preview" %}
+<h2>{% translate "Preview" %}</h2>
+{% if invalid %}
+<p role="alert">{% blocktranslate count rows=invalid %}{{ rows }} row has errors. Nothing has been imported. Fix the file and upload it again.{% plural %}{{ rows }} rows have errors. Nothing has been imported. Fix the file and upload it again.{% endblocktranslate %}</p>
+{% else %}
+<p role="status">{% blocktranslate with name=kind_name count rows=preview.total %}{{ rows }} {{ name }} row is ready. Nothing has been imported yet.{% plural %}{{ rows }} {{ name }} rows are ready. Nothing has been imported yet.{% endblocktranslate %}</p>
+<form method="post" action="{% url 'web:imports' %}" enctype="multipart/form-data">
+  {% csrf_token %}
+  <input type="hidden" name="step" value="import">
+  <input type="hidden" name="kind" value="{{ kind }}">
+  <input type="hidden" name="csv" value="{{ csv }}">
+  {% for field, header in mapping.items %}<input type="hidden" name="map_{{ field }}" value="{{ header }}">{% endfor %}
+  <button type="submit">{% blocktranslate count rows=preview.total %}Import {{ rows }} row{% plural %}Import {{ rows }} rows{% endblocktranslate %}</button>
+</form>
+{% endif %}
+<table>
+  <thead>
+    <tr><th scope="col">{% translate "Row" %}</th>{% for field in fields %}<th scope="col">{{ field.label }}</th>{% endfor %}<th scope="col">{% translate "Result" %}</th></tr>
+  </thead>
+  <tbody>
+    {% for row in shown_rows %}
+    <tr>
+      <td>{{ row.number }}</td>
+      {% for value in row.cells %}<td>{{ value }}</td>{% endfor %}
+      <td>{% if row.errors %}<ul>{% for error in row.errors %}<li>{{ error }}</li>{% endfor %}</ul>{% else %}{% translate "OK" %}{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% if hidden_rows %}<p><small>{% blocktranslate count rows=hidden_rows %}{{ rows }} more valid row is not shown.{% plural %}{{ rows }} more valid rows are not shown.{% endblocktranslate %}</small></p>{% endif %}
+<p><a href="{% url 'web:imports' %}">{% translate "Start over" %}</a></p>
+{% endif %}
+{% endblock %}
