@@ -1,0 +1,11 @@
+{% extends "netatlas/base.html" %}{% load i18n %}
+{% block title %}{% translate "Log in" %} · {{ block.super }}{% endblock %}
+{% block content %}
+<h1>{% translate "Log in" %}</h1>
+<form method="post">
+  {% csrf_token %}
+  {{ form.as_p }}
+  <input type="hidden" name="next" value="{{ next }}">
+  <button type="submit">{% translate "Log in" %}</button>
+</form>
+{% endblock %}

@@ -1,0 +1,50 @@
+{% extends "netatlas/base.html" %}{% load i18n %}
+{% block title %}{% translate "Users" %} · {{ block.super }}{% endblock %}
+{% block content %}
+<h1>{% translate "Users" %}</h1>
+{% if errors %}
+<ul role="alert">
+  {% for error in errors %}<li>{{ error }}</li>{% endfor %}
+</ul>
+{% endif %}
+<table>
+  <thead>
+    <tr><th scope="col">{% translate "Username" %}</th><th scope="col">{% translate "Role" %}</th></tr>
+  </thead>
+  <tbody>
+    {% for account in users %}
+    <tr>
+      <td>{{ account.username }}</td>
+      <td>
+        <form method="post" action="{% url 'web:user-role' account.id %}">
+          {% csrf_token %}
+          <select name="role" aria-label="{% blocktranslate with username=account.username %}Role of {{ username }}{% endblocktranslate %}">
+            {% for value, label in roles %}
+            <option value="{{ value }}"{% if value == account.role %} selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+          <button type="submit">{% translate "Save" %}</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<h2>{% translate "Add user" %}</h2>
+<form method="post" action="{% url 'web:users' %}">
+  {% csrf_token %}
+  <p><label>{% translate "Username" %} <input name="username" value="{{ username }}" autocomplete="off" required></label></p>
+  <p><label>{% translate "Password" %} <input type="password" name="password" autocomplete="new-password" required></label></p>
+  <p>
+    <label>{% translate "Role" %}
+      <select name="role">
+        {% for value, label in roles %}
+        <option value="{{ value }}"{% if value == new_role %} selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+  </p>
+  <button type="submit">{% translate "Add user" %}</button>
+</form>
+{% endblock %}

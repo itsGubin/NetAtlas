@@ -41,6 +41,8 @@ jobs:
         run: |
           echo "NETATLAS_SECRET_KEY=ci-$(openssl rand -hex 32)" > .env
           echo "NETATLAS_DB_PASSWORD=ci-$(openssl rand -hex 16)" >> .env
+          echo "NETATLAS_ADMIN_USERNAME=ci-admin" >> .env
+          echo "NETATLAS_ADMIN_PASSWORD=ci-$(openssl rand -hex 16)" >> .env
       - name: Start the stack and wait for it to be healthy
         run: docker compose up -d --build --wait --wait-timeout 120
       - name: Status reports the database as up
@@ -49,9 +51,9 @@ jobs:
           python3 -c "import json; s = json.load(open('status.json')); assert s['database'] == 'up', s"
       - name: Pages and static files are served
         run: |
-          curl -fsS http://localhost:8000/ | grep -q "NetAtlas"
-          curl -fsS -o /dev/null http://localhost:8000/status/
-          curl -fsS -o /dev/null "http://localhost:8000$(curl -fsS http://localhost:8000/ | grep -o '/static/netatlas/vendor/htmx[^"]*')"
+          curl -fsS http://localhost:8000/login/ | grep -q "NetAtlas"
+          test "$(curl -sS -o /dev/null -w '%{http_code}' http://localhost:8000/)" = 302
+          curl -fsS -o /dev/null "http://localhost:8000$(curl -fsS http://localhost:8000/login/ | grep -o '/static/netatlas/vendor/htmx[^"]*')"
       - name: Stays healthy under a custom host name
         run: NETATLAS_ALLOWED_HOSTS=netatlas.example.test docker compose up -d --wait --wait-timeout 60 app
       - name: Logs on failure

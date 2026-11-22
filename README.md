@@ -7,7 +7,7 @@ A self-hosted tool for documenting a network: its devices, cabling, VLANs and IP
 Requires Docker with Compose.
 
 ```sh
-cp .env.example .env   # then set NETATLAS_SECRET_KEY and NETATLAS_DB_PASSWORD
+cp .env.example .env   # then set the secret key, database password and first Admin
 docker compose up -d
 ```
 
