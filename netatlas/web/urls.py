@@ -24,6 +24,9 @@ urlpatterns = [
     path("devices/", views.devices, name="devices"),
     path("devices/<int:device_id>/", views.device, name="device"),
     path("devices/<int:device_id>/delete/", views.device_remove, name="device-delete"),
+    path("devices/<int:device_id>/interfaces/", views.device_interfaces, name="device-interfaces"),
+    path("interfaces/<int:interface_id>/", views.interface, name="interface"),
+    path("interfaces/<int:interface_id>/delete/", views.interface_remove, name="interface-delete"),
     path("device-types/", views.device_types, name="device-types"),
     path("device-types/<int:device_type_id>/", views.device_type, name="device-type"),
     path(

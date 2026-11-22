@@ -126,10 +126,25 @@ class NewDeviceTypeSerializer(DeviceTypeChangeSerializer):
     model_name = serializers.CharField(max_length=100)
 
 
-class DeviceInterfaceSerializer(serializers.Serializer):
+class InterfaceSerializer(serializers.Serializer):
     id = serializers.IntegerField()
+    device_id = serializers.IntegerField()
     name = serializers.CharField()
     kind = serializers.ChoiceField(choices=INTERFACE_KINDS)
+    lag_id = serializers.IntegerField(allow_null=True)
+    lag_name = serializers.CharField(allow_null=True)
+
+
+class NewInterfaceSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=64)
+    kind = serializers.ChoiceField(choices=INTERFACE_KINDS)
+    lag_id = serializers.IntegerField(required=False, allow_null=True)
+
+
+class InterfaceChangeSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=64, required=False)
+    kind = serializers.ChoiceField(choices=INTERFACE_KINDS, required=False)
+    lag_id = serializers.IntegerField(required=False, allow_null=True)
 
 
 class DeviceSerializer(serializers.Serializer):
@@ -143,7 +158,7 @@ class DeviceSerializer(serializers.Serializer):
     device_type_id = serializers.IntegerField(allow_null=True)
     device_type_name = serializers.CharField(allow_null=True)
     rack_height = serializers.IntegerField()
-    interfaces = DeviceInterfaceSerializer(many=True)
+    interfaces = InterfaceSerializer(many=True)
 
 
 class NewDeviceSerializer(serializers.Serializer):

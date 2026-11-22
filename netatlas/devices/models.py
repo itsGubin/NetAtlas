@@ -82,6 +82,10 @@ class Interface(TrackedModel):
     device = models.ForeignKey(Device, on_delete=models.CASCADE, related_name="interfaces")
     name = models.CharField(max_length=64)
     kind = models.CharField(max_length=16, choices=Kind.choices)
+    # The LAG this Physical Interface is bundled into. Members outlive their LAG.
+    lag = models.ForeignKey(
+        "self", null=True, blank=True, on_delete=models.SET_NULL, related_name="members"
+    )
 
     class Meta:
         constraints = [

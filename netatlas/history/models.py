@@ -72,13 +72,17 @@ class TrackedModel(models.Model):
         abstract = True
 
     def clean_fields(self, exclude=None):
-        """Refuse NUL characters, which Postgres cannot store and would turn into a 500."""
+        """Refuse NUL characters, which Postgres cannot store, and required text of only spaces."""
         skipped = set(exclude or ())
         errors = {}
         for field in self._meta.concrete_fields:
             value = getattr(self, field.attname)
-            if field.name not in skipped and isinstance(value, str) and "\x00" in value:
+            if field.name in skipped or not isinstance(value, str):
+                continue
+            if "\x00" in value:
                 errors[field.name] = [_("Null characters are not allowed.")]
+            elif value and not value.strip() and not field.blank:
+                errors[field.name] = [_("This field cannot be blank.")]
         try:
             super().clean_fields(exclude=skipped | set(errors))
         except ValidationError as error:

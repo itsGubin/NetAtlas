@@ -20,18 +20,23 @@ from netatlas.accounts.services import (
     role_of,
 )
 from netatlas.devices.services import (
+    INTERFACE_KINDS,
     create_device,
     create_device_type,
+    create_interface,
     delete_device,
     delete_device_type,
+    delete_interface,
     format_interface_lines,
     get_device,
     get_device_type,
+    get_interface,
     list_device_types,
     list_devices,
     parse_interface_lines,
     update_device,
     update_device_type,
+    update_interface,
     virtual_devices,
 )
 from netatlas.history.services import item_history
@@ -219,6 +224,67 @@ def device_remove(request, device_id):
     return redirect("web:devices")
 
 
+@require_POST
+def device_interfaces(request, device_id):
+    require_editor(request.user)
+    try:
+        create_interface(request.user, device_id, **_interface_values(request))
+    except ValidationError as error:
+        return _render_device(
+            request, device_id, errors=error.messages, interface_form=request.POST
+        )
+    return redirect("web:device", device_id=device_id)
+
+
+@require_http_methods(["GET", "POST"])
+def interface(request, interface_id):
+    if request.method == "GET":
+        return _render_interface(request, interface_id)
+
+    require_editor(request.user)
+    try:
+        update_interface(request.user, interface_id, **_interface_values(request))
+    except ValidationError as error:
+        return _render_interface(request, interface_id, errors=error.messages, form=request.POST)
+    return redirect("web:interface", interface_id=interface_id)
+
+
+@require_POST
+def interface_remove(request, interface_id):
+    require_editor(request.user)
+    device_id = get_interface(request.user, interface_id).device_id
+    delete_interface(request.user, interface_id)
+    return redirect("web:device", device_id=device_id)
+
+
+def _interface_values(request) -> dict:
+    values = {"name": request.POST.get("name", ""), "kind": request.POST.get("kind", "")}
+    # A Device without LAGs shows no LAG field, so its absence must change nothing.
+    if "lag_id" in request.POST:
+        values["lag_id"] = _posted_id(request, "lag_id")
+    return values
+
+
+def _interface_kinds(device_kind: str) -> tuple[str, ...]:
+    return ("virtual",) if device_kind == "virtual" else INTERFACE_KINDS
+
+
+def _render_interface(request, interface_id, errors=(), form=None):
+    item = get_interface(request.user, interface_id)
+    owner = get_device(request.user, item.device_id)
+    context = {
+        "interface": item,
+        "device": owner,
+        "interface_kinds": _interface_kinds(owner.kind),
+        "lags": [i for i in owner.interfaces if i.kind == "lag" and i.id != item.id],
+        "selected_lag": _submitted_id(request, "lag_id", item.lag_id),
+        "interface_form": form or {"name": item.name, "kind": item.kind},
+        "entries": item_history(request.user, "interface", item.id),
+        "errors": errors,
+    }
+    return render(request, "netatlas/interface.html", context, status=400 if errors else 200)
+
+
 def _new_device_values(request) -> dict:
     kind = request.POST.get("kind", "")
     values = {
@@ -282,7 +348,7 @@ def _render_devices(request, errors=(), form=None):
     return render(request, "netatlas/devices.html", context, status=400 if errors else 200)
 
 
-def _render_device(request, device_id, errors=(), form=None):
+def _render_device(request, device_id, errors=(), form=None, interface_form=None):
     item = get_device(request.user, device_id)
     nested = virtual_devices(request.user, device_id)
     # A Device cannot run on itself or on anything nested on it.
@@ -296,7 +362,13 @@ def _render_device(request, device_id, errors=(), form=None):
         "selected_parent": _submitted_id(request, "parent_id", item.parent_id),
         "entries": item_history(request.user, "device", item.id),
         "errors": errors,
-        "form": form or {"name": item.name, "rack_height": item.rack_height},
+        "form": {"name": item.name, "rack_height": item.rack_height}
+        if interface_form or not form
+        else form,
+        "interface_form": interface_form or {},
+        "interface_kinds": _interface_kinds(item.kind),
+        "lags": [i for i in item.interfaces if i.kind == "lag"],
+        "selected_lag": _submitted_id(request, "lag_id"),
     }
     return render(request, "netatlas/device.html", context, status=400 if errors else 200)
 

@@ -1,0 +1,23 @@
+{% load i18n %}{# Expects `interface_form`, `interface_kinds`, `lags` and `selected_lag`. #}
+<p><label>{% translate "Name" %} <input name="name" value="{{ interface_form.name|default:'' }}" required></label></p>
+<p>
+  <label>{% translate "Kind" %}
+    <select name="kind">
+      {% for kind in interface_kinds %}
+      <option value="{{ kind }}"{% if kind == interface_form.kind %} selected{% endif %}>{{ kind }}</option>
+      {% endfor %}
+    </select>
+  </label>
+</p>
+{% if lags %}
+<p>
+  <label>{% translate "LAG" %}
+    <select name="lag_id">
+      <option value="">{% translate "None" %}</option>
+      {% for lag in lags %}
+      <option value="{{ lag.id }}"{% if lag.id == selected_lag %} selected{% endif %}>{{ lag.name }}</option>
+      {% endfor %}
+    </select>
+  </label>
+</p>
+{% endif %}

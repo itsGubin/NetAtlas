@@ -23,16 +23,31 @@
 <h2>{% translate "Interfaces" %}</h2>
 <table>
   <thead>
-    <tr><th scope="col">{% translate "Name" %}</th><th scope="col">{% translate "Kind" %}</th></tr>
+    <tr>
+      <th scope="col">{% translate "Name" %}</th>
+      <th scope="col">{% translate "Kind" %}</th>
+      <th scope="col">{% translate "LAG" %}</th>
+    </tr>
   </thead>
   <tbody>
     {% for interface in device.interfaces %}
-    <tr><td>{{ interface.name }}</td><td>{{ interface.kind }}</td></tr>
+    <tr>
+      <td><a href="{% url 'web:interface' interface.id %}">{{ interface.name }}</a></td>
+      <td>{{ interface.kind }}</td>
+      <td>{% if interface.lag_id %}<a href="{% url 'web:interface' interface.lag_id %}">{{ interface.lag_name }}</a>{% else %}—{% endif %}</td>
+    </tr>
     {% endfor %}
   </tbody>
 </table>
 
 {% if can_edit %}
+<h3>{% translate "Add Interface" %}</h3>
+<form method="post" action="{% url 'web:device-interfaces' device.id %}">
+  {% csrf_token %}
+  {% include "netatlas/_interface_fields.html" %}
+  <button type="submit">{% translate "Add Interface" %}</button>
+</form>
+
 <h2>{% translate "Edit Device" %}</h2>
 <form method="post" action="{% url 'web:device' device.id %}">
   {% csrf_token %}

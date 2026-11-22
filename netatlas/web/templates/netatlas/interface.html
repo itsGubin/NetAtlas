@@ -1,0 +1,27 @@
+{% extends "netatlas/base.html" %}{% load i18n %}
+{% block title %}{{ device.name }} {{ interface.name }} · {{ block.super }}{% endblock %}
+{% block content %}
+<h1>{{ interface.name }}</h1>
+{% include "netatlas/_errors.html" %}
+<dl>
+  <dt>{% translate "Device" %}</dt><dd><a href="{% url 'web:device' device.id %}">{{ device.name }}</a></dd>
+  <dt>{% translate "Kind" %}</dt><dd>{{ interface.kind }}</dd>
+  {% if interface.lag_id %}<dt>{% translate "LAG" %}</dt><dd><a href="{% url 'web:interface' interface.lag_id %}">{{ interface.lag_name }}</a></dd>{% endif %}
+</dl>
+
+{% if can_edit %}
+<h2>{% translate "Edit Interface" %}</h2>
+<form method="post" action="{% url 'web:interface' interface.id %}">
+  {% csrf_token %}
+  {% include "netatlas/_interface_fields.html" %}
+  <button type="submit">{% translate "Save" %}</button>
+</form>
+<form method="post" action="{% url 'web:interface-delete' interface.id %}">
+  {% csrf_token %}
+  <button type="submit">{% translate "Delete Interface" %}</button>
+</form>
+{% endif %}
+
+<h2>{% translate "History" %}</h2>
+{% include "netatlas/_history.html" %}
+{% endblock %}
