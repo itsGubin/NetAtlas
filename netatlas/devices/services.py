@@ -5,18 +5,20 @@ import re
 from collections import defaultdict
 from contextlib import contextmanager
 from dataclasses import dataclass
+from ipaddress import ip_address
 from itertools import product
 
 from django.core.exceptions import ValidationError
-from django.db import IntegrityError, connection, transaction
+from django.db import IntegrityError, transaction
 from django.db.models import Q
 from django.http import Http404
 from django.utils.translation import gettext as _
 
 from netatlas.accounts.services import require_editor, require_role
-from netatlas.addressing.models import Vlan
+from netatlas.addressing.models import IpAddress, Vlan
 from netatlas.devices.models import Cable, Device, DeviceType, Interface, Rack
 from netatlas.history.services import create_item, delete_item, update_item
+from netatlas.system.locks import lock_inventory
 
 INTERFACE_KINDS = ("physical", "virtual", "lag")
 MAX_INTERFACES = 1024
@@ -36,9 +38,8 @@ _INTERFACE_RELATIONS = (
     "interfaces__cable_as_b__interface_a__device",
     "interfaces__untagged_vlan",
     "interfaces__tagged_vlans",
+    "interfaces__ip_addresses",
 )
-# Any fixed number. It identifies this lock among Postgres advisory locks.
-_DEVICE_TREE_LOCK = 7_400_801
 
 
 @dataclass(frozen=True)
@@ -58,6 +59,12 @@ class VlanRef:
 
 
 @dataclass(frozen=True)
+class IpAddressRef:
+    id: int
+    address: str
+
+
+@dataclass(frozen=True)
 class InterfaceSummary:
     id: int
     device_id: int
@@ -74,6 +81,7 @@ class InterfaceSummary:
     paired_interface_name: str | None
     untagged_vlan: VlanRef | None
     tagged_vlans: list[VlanRef]
+    ip_addresses: list[IpAddressRef]
 
 
 @dataclass(frozen=True)
@@ -294,12 +302,19 @@ def update_device(actor, device_id: int, **values) -> DeviceSummary:
         elif device.rack_id:
             _check_racked_device_change(device, values)
 
-        if values.get("site_id", device.site_id) != device.site_id and _uses_vlans(
-            [device.pk, *(entry.pk for entry in nested)]
-        ):
-            # VLAN 10 can mean something else in every Site, so nothing is carried over.
-            message = _("Remove the VLANs from its Interfaces before moving it to another Site.")
-            raise _field_error("site_id", message)
+        if values.get("site_id", device.site_id) != device.site_id:
+            moving = [device.pk, *(entry.pk for entry in nested)]
+            # VLAN 10 and 10.0.0.1 can mean something else in every Site, so nothing carries over.
+            if _uses_vlans(moving):
+                message = _(
+                    "Remove the VLANs from its Interfaces before moving it to another Site."
+                )
+                raise _field_error("site_id", message)
+            if IpAddress.objects.filter(interface__device_id__in=moving).exists():
+                message = _(
+                    "Unassign the IP Addresses on its Interfaces before moving it to another Site."
+                )
+                raise _field_error("site_id", message)
 
         updated = update_item(actor, device, **values)
         if updated.site_id != device.site_id:
@@ -783,7 +798,7 @@ def _find_interface(interface_id: int):
             "cable_as_b__interface_a__device",
             "untagged_vlan",
         )
-        .prefetch_related("tagged_vlans")
+        .prefetch_related("tagged_vlans", "ip_addresses")
         .filter(pk=interface_id)
         .first()
     )
@@ -814,7 +829,16 @@ def _interface_summary(interface) -> InterfaceSummary:
             _vlan_ref(vlan)
             for vlan in sorted(interface.tagged_vlans.all(), key=lambda v: v.number)
         ],
+        ip_addresses=[
+            IpAddressRef(id=item.pk, address=item.address)
+            for item in sorted(interface.ip_addresses.all(), key=_numeric_address)
+        ],
     )
+
+
+def _numeric_address(item) -> tuple[int, int]:
+    address = ip_address(item.address)
+    return address.version, int(address)
 
 
 def _vlan_ref(vlan) -> VlanRef:
@@ -870,8 +894,7 @@ def _uses_vlans(device_ids: list[int]) -> bool:
 
 def _lock_device_tree() -> None:
     """Serialize Device writes, so concurrent moves cannot form a cycle or split a tree."""
-    with connection.cursor() as cursor:
-        cursor.execute("SELECT pg_advisory_xact_lock(%s)", [_DEVICE_TREE_LOCK])
+    lock_inventory()
 
 
 def _descendants(device) -> list:

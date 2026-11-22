@@ -99,7 +99,8 @@ def delete_site(actor, site_id: int) -> None:
             delete_item(actor, Site.objects.get(pk=site_id))
         except ProtectedError as error:
             message = _(
-                "This Site still has Devices, Racks, Subnets or VLANs. Move or delete them first."
+                "This Site still has Devices, Racks, Subnets, VLANs or IP Addresses. "
+                "Move or delete them first."
             )
             raise ValidationError(message) from error
 

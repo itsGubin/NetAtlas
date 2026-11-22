@@ -8,6 +8,7 @@ from netatlas.accounts.roles import Role
 
 DEVICE_KINDS = ["physical", "virtual"]
 INTERFACE_KINDS = ["physical", "virtual", "lag"]
+IP_ADDRESS_STATUSES = ["assigned", "reserved"]
 
 
 class StatusSerializer(serializers.Serializer):
@@ -126,6 +127,11 @@ class NewDeviceTypeSerializer(DeviceTypeChangeSerializer):
     model_name = serializers.CharField(max_length=100)
 
 
+class IpAddressRefSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    address = serializers.CharField()
+
+
 class VlanRefSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     number = serializers.IntegerField()
@@ -148,6 +154,7 @@ class InterfaceSerializer(serializers.Serializer):
     paired_interface_name = serializers.CharField(allow_null=True)
     untagged_vlan = VlanRefSerializer(allow_null=True)
     tagged_vlans = VlanRefSerializer(many=True)
+    ip_addresses = IpAddressRefSerializer(many=True)
 
 
 class NewInterfaceSerializer(serializers.Serializer):
@@ -417,6 +424,87 @@ class IdListField(serializers.ListField):
 class InterfaceVlansSerializer(serializers.Serializer):
     untagged_vlan_id = serializers.IntegerField(allow_null=True)
     tagged_vlan_ids = IdListField(max_length=4094)
+
+
+class IpAddressSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    address = serializers.CharField()
+    version = serializers.IntegerField()
+    status = serializers.ChoiceField(choices=IP_ADDRESS_STATUSES)
+    site_id = serializers.IntegerField()
+    site_name = serializers.CharField()
+    subnet_id = serializers.IntegerField(
+        allow_null=True, help_text="The most specific Subnet containing this address."
+    )
+    subnet_cidr = serializers.CharField(allow_null=True)
+    interface_id = serializers.IntegerField(allow_null=True)
+    interface_name = serializers.CharField(allow_null=True)
+    device_id = serializers.IntegerField(allow_null=True)
+    device_name = serializers.CharField(allow_null=True)
+    description = serializers.CharField(allow_blank=True)
+
+
+class NewIpAddressSerializer(serializers.Serializer):
+    address = serializers.CharField(max_length=64)
+    site_id = serializers.IntegerField()
+    interface_id = serializers.IntegerField(required=False, allow_null=True)
+    description = serializers.CharField(max_length=200, required=False, allow_blank=True)
+
+
+class IpAddressChangeSerializer(serializers.Serializer):
+    address = serializers.CharField(max_length=64, required=False)
+    interface_id = serializers.IntegerField(required=False, allow_null=True)
+    description = serializers.CharField(max_length=200, required=False, allow_blank=True)
+
+
+class AssignIpAddressSerializer(serializers.Serializer):
+    address = serializers.CharField(max_length=64)
+
+
+class IpAddressFilterSerializer(serializers.Serializer):
+    site = serializers.IntegerField(required=False)
+    subnet = serializers.IntegerField(required=False)
+    interface = serializers.IntegerField(required=False)
+    status = serializers.ChoiceField(choices=IP_ADDRESS_STATUSES, required=False)
+
+
+class DhcpRangeSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    subnet_id = serializers.IntegerField()
+    subnet_cidr = serializers.CharField()
+    start = serializers.CharField()
+    end = serializers.CharField()
+    size = serializers.CharField(help_text="Text, as IPv6 sizes do not fit a JSON number.")
+    description = serializers.CharField(allow_blank=True)
+
+
+class NewDhcpRangeSerializer(serializers.Serializer):
+    subnet_id = serializers.IntegerField()
+    start = serializers.CharField(max_length=64)
+    end = serializers.CharField(max_length=64)
+    description = serializers.CharField(max_length=200, required=False, allow_blank=True)
+
+
+class DhcpRangeChangeSerializer(serializers.Serializer):
+    start = serializers.CharField(max_length=64, required=False)
+    end = serializers.CharField(max_length=64, required=False)
+    description = serializers.CharField(max_length=200, required=False, allow_blank=True)
+
+
+class DhcpRangeFilterSerializer(serializers.Serializer):
+    subnet = serializers.IntegerField(required=False)
+
+
+class SubnetUsageSerializer(serializers.Serializer):
+    subnet = SubnetSerializer()
+    assigned = serializers.IntegerField()
+    reserved = serializers.IntegerField()
+    dhcp = serializers.CharField(help_text="Text, as IPv6 counts do not fit a JSON number.")
+    nested = serializers.CharField(help_text="Text, as IPv6 counts do not fit a JSON number.")
+    free = serializers.CharField(help_text="Text, as IPv6 counts do not fit a JSON number.")
+    next_free = serializers.CharField(allow_null=True)
+    ip_addresses = IpAddressSerializer(many=True)
+    dhcp_ranges = DhcpRangeSerializer(many=True)
 
 
 class ErrorBodySerializer(serializers.Serializer):

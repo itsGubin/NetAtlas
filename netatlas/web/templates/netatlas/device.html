@@ -66,6 +66,7 @@
       <th scope="col">{% translate "Connected to" %}</th>
       <th scope="col">{% translate "Untagged VLAN" %}</th>
       <th scope="col">{% translate "Tagged VLANs" %}</th>
+      <th scope="col">{% translate "IP Addresses" %}</th>
     </tr>
   </thead>
   <tbody>
@@ -77,6 +78,7 @@
       <td>{% if interface.peer_interface_id %}<a href="{% url 'web:interface' interface.peer_interface_id %}">{{ interface.peer_device_name }} {{ interface.peer_interface_name }}</a>{% else %}—{% endif %}</td>
       <td>{% if interface.untagged_vlan %}<a href="{% url 'web:vlan' interface.untagged_vlan.id %}">{{ interface.untagged_vlan.number }}</a>{% else %}—{% endif %}</td>
       <td>{% for item in interface.tagged_vlans %}<a href="{% url 'web:vlan' item.id %}">{{ item.number }}</a>{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}</td>
+      <td>{% for item in interface.ip_addresses %}<a href="{% url 'web:ip-address' item.id %}">{{ item.address }}</a>{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}</td>
     </tr>
     {% endfor %}
   </tbody>

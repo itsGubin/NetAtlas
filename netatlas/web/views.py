@@ -21,14 +21,27 @@ from netatlas.accounts.services import (
     role_of,
 )
 from netatlas.addressing.services import (
+    assign_ip_address,
+    create_dhcp_range,
+    create_ip_address,
     create_subnet,
     create_vlan,
+    delete_dhcp_range,
+    delete_ip_address,
     delete_subnet,
     delete_vlan,
+    get_dhcp_range,
+    get_ip_address,
     get_subnet,
     get_vlan,
+    list_ip_addresses,
     list_subnets,
     list_vlans,
+    reserve_ip_address,
+    subnet_usage,
+    unassign_ip_address,
+    update_dhcp_range,
+    update_ip_address,
     update_subnet,
     update_vlan,
     vlan_usage,
@@ -559,8 +572,160 @@ def subnet(request, subnet_id):
 
 @require_POST
 def subnet_remove(request, subnet_id):
-    delete_subnet(request.user, subnet_id)
+    try:
+        delete_subnet(request.user, subnet_id)
+    except ValidationError as error:
+        return _render_subnet(request, subnet_id, errors=error.messages)
     return redirect("web:subnets")
+
+
+@require_POST
+def subnet_ip_addresses(request, subnet_id):
+    require_editor(request.user)
+    address = request.POST.get("address", "")
+    try:
+        reserve_ip_address(
+            request.user, subnet_id, address, description=request.POST.get("description", "")
+        )
+    except ValidationError as error:
+        return _render_subnet(request, subnet_id, errors=error.messages, new_address=address)
+    return redirect("web:subnet", subnet_id=subnet_id)
+
+
+@require_POST
+def subnet_dhcp_ranges(request, subnet_id):
+    require_editor(request.user)
+    try:
+        create_dhcp_range(
+            request.user,
+            subnet_id,
+            request.POST.get("start", ""),
+            request.POST.get("end", ""),
+            description=request.POST.get("description", ""),
+        )
+    except ValidationError as error:
+        return _render_subnet(request, subnet_id, errors=error.messages, range_form=request.POST)
+    return redirect("web:subnet", subnet_id=subnet_id)
+
+
+@require_http_methods(["GET", "POST"])
+def dhcp_range(request, range_id):
+    if request.method == "GET":
+        return _render_dhcp_range(request, range_id)
+
+    require_editor(request.user)
+    try:
+        update_dhcp_range(
+            request.user,
+            range_id,
+            start=request.POST.get("start", ""),
+            end=request.POST.get("end", ""),
+            description=request.POST.get("description", ""),
+        )
+    except ValidationError as error:
+        return _render_dhcp_range(request, range_id, errors=error.messages, form=request.POST)
+    return redirect("web:dhcp-range", range_id=range_id)
+
+
+@require_POST
+def dhcp_range_remove(request, range_id):
+    require_editor(request.user)
+    subnet_id = get_dhcp_range(request.user, range_id).subnet_id
+    delete_dhcp_range(request.user, range_id)
+    return redirect("web:subnet", subnet_id=subnet_id)
+
+
+def _render_dhcp_range(request, range_id, errors=(), form=None):
+    item = get_dhcp_range(request.user, range_id)
+    context = {
+        "dhcp_range": item,
+        "entries": item_history(request.user, "dhcp-range", item.id),
+        "errors": errors,
+        "form": form
+        or {"start": item.start, "end": item.end, "description": item.description},
+    }
+    return render(request, "netatlas/dhcp_range.html", context, status=400 if errors else 200)
+
+
+@require_http_methods(["GET", "POST"])
+def ip_addresses(request):
+    if request.method == "GET":
+        return _render_ip_addresses(request)
+
+    require_editor(request.user)
+    try:
+        create_ip_address(
+            request.user,
+            address=request.POST.get("address", ""),
+            site_id=_required_id(request, "site_id"),
+            description=request.POST.get("description", ""),
+        )
+    except ValidationError as error:
+        return _render_ip_addresses(request, errors=error.messages, form=request.POST)
+    return redirect("web:ip-addresses")
+
+
+@require_http_methods(["GET", "POST"])
+def ip_address(request, address_id):
+    if request.method == "GET":
+        return _render_ip_address(request, address_id)
+
+    require_editor(request.user)
+    try:
+        update_ip_address(
+            request.user,
+            address_id,
+            address=request.POST.get("address", ""),
+            description=request.POST.get("description", ""),
+        )
+    except ValidationError as error:
+        return _render_ip_address(request, address_id, errors=error.messages, form=request.POST)
+    return redirect("web:ip-address", address_id=address_id)
+
+
+@require_POST
+def ip_address_remove(request, address_id):
+    delete_ip_address(request.user, address_id)
+    return redirect("web:ip-addresses")
+
+
+@require_POST
+def ip_address_unassign(request, address_id):
+    unassign_ip_address(request.user, address_id)
+    return redirect("web:ip-address", address_id=address_id)
+
+
+@require_POST
+def interface_ip_addresses(request, interface_id):
+    require_editor(request.user)
+    try:
+        assign_ip_address(request.user, interface_id, request.POST.get("address", ""))
+    except ValidationError as error:
+        return _render_interface(request, interface_id, errors=error.messages)
+    return redirect("web:interface", interface_id=interface_id)
+
+
+def _render_ip_addresses(request, errors=(), form=None):
+    context = {
+        "ip_addresses": list_ip_addresses(request.user),
+        "sites": list_sites(request.user),
+        "selected_site": _submitted_id(request, "site_id"),
+        "errors": errors,
+        "form": form or {},
+    }
+    return render(request, "netatlas/ip_addresses.html", context, status=400 if errors else 200)
+
+
+def _render_ip_address(request, address_id, errors=(), form=None):
+    item = get_ip_address(request.user, address_id)
+    context = {
+        "ip_address": item,
+        "sites": list_sites(request.user),
+        "entries": item_history(request.user, "ip-address", item.id),
+        "errors": errors,
+        "form": form or {"address": item.address, "description": item.description},
+    }
+    return render(request, "netatlas/ip_address.html", context, status=400 if errors else 200)
 
 
 def _render_subnets(request, errors=(), form=None):
@@ -576,11 +741,17 @@ def _render_subnets(request, errors=(), form=None):
     return render(request, "netatlas/subnets.html", context, status=400 if errors else 200)
 
 
-def _render_subnet(request, subnet_id, errors=(), form=None):
+def _render_subnet(
+    request, subnet_id, errors=(), form=None, new_address=None, range_form=None
+):
     item = get_subnet(request.user, subnet_id)
     in_site = list_subnets(request.user, site_id=item.site_id)
+    usage = subnet_usage(request.user, subnet_id)
     context = {
         "subnet": item,
+        "usage": usage,
+        "new_address": usage.next_free or "" if new_address is None else new_address,
+        "range_form": range_form or {},
         "children": [entry for entry in in_site if entry.parent_id == item.id],
         "sites": list_sites(request.user),
         "vlans": list_vlans(request.user, site_id=item.site_id),

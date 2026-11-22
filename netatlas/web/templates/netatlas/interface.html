@@ -20,7 +20,21 @@
 </dl>
 {% if is_physical %}<p><a href="{% url 'web:interface-trace' interface.id %}">{% translate "Trace cable path" %}</a></p>{% endif %}
 
+<h2>{% translate "IP Addresses" %}</h2>
+{% if interface.ip_addresses %}
+<ul>
+  {% for item in interface.ip_addresses %}<li><a href="{% url 'web:ip-address' item.id %}">{{ item.address }}</a></li>{% endfor %}
+</ul>
+{% else %}
+<p>—</p>
+{% endif %}
+
 {% if can_edit %}
+<form method="post" action="{% url 'web:interface-ip-addresses' interface.id %}">
+  {% csrf_token %}
+  <p><label>{% translate "IP Address" %} <input name="address" required></label></p>
+  <button type="submit">{% translate "Assign" %}</button>
+</form>
 {% if cable_choices %}
 <h2>{% translate "Connect a Cable" %}</h2>
 <form method="post" action="{% url 'web:interface-cable' interface.id %}">
