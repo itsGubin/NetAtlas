@@ -1,0 +1,32 @@
+{% extends "netatlas/base.html" %}{% load i18n %}
+{% block title %}{% translate "Sites" %} · {{ block.super }}{% endblock %}
+{% block content %}
+<h1>{% translate "Sites" %}</h1>
+{% include "netatlas/_errors.html" %}
+<table>
+  <thead>
+    <tr>
+      <th scope="col">{% translate "Name" %}</th>
+      {% if customers %}<th scope="col">{% translate "Customer" %}</th>{% endif %}
+    </tr>
+  </thead>
+  <tbody>
+    {% for site in sites %}
+    <tr>
+      <td><a href="{% url 'web:site' site.id %}">{{ site.name }}</a></td>
+      {% if customers %}<td>{{ site.customer_name|default_if_none:"—" }}</td>{% endif %}
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% if can_edit %}
+<h2>{% translate "Add Site" %}</h2>
+<form method="post" action="{% url 'web:sites' %}">
+  {% csrf_token %}
+  {% include "netatlas/_site_fields.html" %}
+  <button type="submit">{% translate "Add Site" %}</button>
+</form>
+{% if not customers %}<p><a href="{% url 'web:customers' %}">{% translate "Add a Customer" %}</a></p>{% endif %}
+{% endif %}
+{% endblock %}

@@ -32,6 +32,7 @@ INSTALLED_APPS = [
     "drf_spectacular",
     "netatlas.accounts",
     "netatlas.history",
+    "netatlas.places",
     "netatlas.web",
 ]
 

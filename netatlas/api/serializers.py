@@ -63,6 +63,35 @@ class HistoryEntrySerializer(serializers.Serializer):
     changes = FieldChangeSerializer(many=True)
 
 
+class CustomerSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    name = serializers.CharField()
+
+
+class CustomerChangeSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=100)
+
+
+class SiteSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    name = serializers.CharField()
+    customer_id = serializers.IntegerField(allow_null=True)
+    customer_name = serializers.CharField(allow_null=True)
+
+
+class SiteChangeSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=100, required=False)
+    customer_id = serializers.IntegerField(required=False, allow_null=True)
+
+
+class NewSiteSerializer(SiteChangeSerializer):
+    name = serializers.CharField(max_length=100)
+
+
+class SiteFilterSerializer(serializers.Serializer):
+    customer = serializers.IntegerField(required=False)
+
+
 class ErrorBodySerializer(serializers.Serializer):
     code = serializers.CharField()
     message = serializers.CharField()

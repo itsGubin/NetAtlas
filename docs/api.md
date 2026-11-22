@@ -54,6 +54,14 @@ Every error has the same shape. `fields` lists messages per field and is empty f
 
 `GET /api/history/<kind>/<id>/` lists an item's History, newest first, for any Role. Entries record who changed which field from what to what, and stay available after the item is deleted. History is read-only.
 
+## Customers and Sites
+
+`/api/customers/` and `/api/sites/` support list, create, read, `PATCH` and delete. Every Role can read. Admins and Editors can write. `/api/sites/?customer=<id>` filters Sites by Customer.
+
+- Deleting a Customer keeps its Sites, which then have no Customer.
+- The last remaining Site cannot be deleted, and the attempt is a `400`.
+- A fresh install has one Site named `Default`. Its History credits the actor `system`.
+
 ## Adding a documented item
 
 - Inherit from `TrackedModel`, and set `history_kind` and any `history_exclude` fields.
