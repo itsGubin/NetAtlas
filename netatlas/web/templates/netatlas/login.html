@@ -8,4 +8,11 @@
   <input type="hidden" name="next" value="{{ next }}">
   <button type="submit">{% translate "Log in" %}</button>
 </form>
+{% if oidc_provider %}
+<form method="post" action="{% url 'web:oidc-login' %}">
+  {% csrf_token %}
+  <input type="hidden" name="next" value="{{ next }}">
+  <button type="submit">{% blocktranslate with provider=oidc_provider %}Log in with {{ provider }}{% endblocktranslate %}</button>
+</form>
+{% endif %}
 {% endblock %}

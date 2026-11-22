@@ -2,6 +2,10 @@ import json
 
 from django import forms
 from django.contrib import messages
+from django.contrib.auth.decorators import login_not_required
+from django.utils.http import url_has_allowed_host_and_scheme
+from django.contrib.auth import login
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.http import Http404
 from django.shortcuts import redirect, render
@@ -11,6 +15,7 @@ from django.utils.translation import gettext as _
 from django.utils.translation import ngettext
 from django.views.decorators.http import require_http_methods, require_POST
 
+from netatlas.accounts.oidc import OidcLoginFailed, begin_login, finish_login
 from netatlas.accounts.roles import Role
 from netatlas.accounts.services import (
     assign_role,
@@ -1263,6 +1268,41 @@ def _render_page_edit(request, page_id, errors=(), title=None, body=None, sectio
         "errors": errors,
     }
     return render(request, "netatlas/page_edit.html", context, status=400 if errors else 200)
+
+
+_OIDC_NEXT = "oidc_next"
+
+
+@login_not_required
+@require_POST
+def oidc_login(request):
+    """Starts on POST, so another site cannot send someone through a login."""
+    if not settings.OIDC:
+        raise Http404
+    wanted = request.POST.get("next", "")
+    safe = url_has_allowed_host_and_scheme(
+        wanted, allowed_hosts={request.get_host()}, require_https=request.is_secure()
+    )
+    request.session[_OIDC_NEXT] = wanted if safe else ""
+    try:
+        return begin_login(request, request.build_absolute_uri(reverse("web:oidc-callback")))
+    except OidcLoginFailed as error:
+        messages.error(request, str(error))
+        return redirect("web:login")
+
+
+@login_not_required
+def oidc_callback(request):
+    if not settings.OIDC:
+        raise Http404
+    target = request.session.pop(_OIDC_NEXT, "")
+    try:
+        user = finish_login(request)
+    except OidcLoginFailed as error:
+        messages.error(request, str(error))
+        return redirect("web:login")
+    login(request, user, backend="django.contrib.auth.backends.ModelBackend")
+    return redirect(target or settings.LOGIN_REDIRECT_URL)
 
 
 MAX_PREVIEW_ROWS = 50

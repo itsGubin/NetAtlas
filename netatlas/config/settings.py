@@ -7,6 +7,7 @@ from django.core.exceptions import ImproperlyConfigured
 from django.utils.translation import gettext_lazy as _
 
 from netatlas import __version__
+from netatlas.config.oidc import read_oidc_config
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
@@ -114,6 +115,9 @@ AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
+
+# Login through an OIDC provider, alongside local accounts. See docs/oidc.md.
+OIDC = read_oidc_config(os.environ)
 
 LOGIN_URL = "web:login"
 LOGIN_REDIRECT_URL = "web:home"

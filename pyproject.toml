@@ -12,6 +12,8 @@ dependencies = [
     "gunicorn>=27,<28",
     "whitenoise>=6,<7",
     "markdown-it-py>=4.3,<5",
+    "authlib>=1.9,<1.10",
+    "requests>=2.32,<3",
 ]
 
 [project.optional-dependencies]
