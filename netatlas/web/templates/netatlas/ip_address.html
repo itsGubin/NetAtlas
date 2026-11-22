@@ -28,6 +28,8 @@
 <p><a href="{% url 'web:ip-address-delete' ip_address.id %}">{% translate "Delete IP Address" %}</a></p>
 {% endif %}
 
+{% include "netatlas/_tags.html" with tag_kind="ip-address" tag_item=ip_address.id %}
+
 <h2>{% translate "History" %}</h2>
 {% include "netatlas/_history.html" %}
 {% endblock %}

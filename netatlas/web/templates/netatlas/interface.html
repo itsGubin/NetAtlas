@@ -102,6 +102,8 @@
 <p><a href="{% url 'web:interface-delete' interface.id %}">{% translate "Delete Interface" %}</a></p>
 {% endif %}
 
+{% include "netatlas/_tags.html" with tag_kind="interface" tag_item=interface.id %}
+
 <h2>{% translate "History" %}</h2>
 {% include "netatlas/_history.html" %}
 {% endblock %}

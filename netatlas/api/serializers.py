@@ -529,6 +529,30 @@ class DeletePreviewSerializer(serializers.Serializer):
     )
 
 
+class TagRefSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    name = serializers.CharField()
+
+
+class TagSerializer(TagRefSerializer):
+    usage = serializers.IntegerField(help_text="How many items carry this Tag.")
+
+
+class TagChangeSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=50)
+
+
+class TaggedItemSerializer(serializers.Serializer):
+    kind = serializers.CharField()
+    id = serializers.IntegerField()
+    label = serializers.CharField()
+
+
+class TagUsageSerializer(serializers.Serializer):
+    tag = TagSerializer()
+    items = TaggedItemSerializer(many=True)
+
+
 class ErrorBodySerializer(serializers.Serializer):
     code = serializers.CharField()
     message = serializers.CharField()

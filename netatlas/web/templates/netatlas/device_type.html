@@ -27,6 +27,8 @@
 <p><a href="{% url 'web:device-type-delete' device_type.id %}">{% translate "Delete Device Type" %}</a></p>
 {% endif %}
 
+{% include "netatlas/_tags.html" with tag_kind="device-type" tag_item=device_type.id %}
+
 <h2>{% translate "History" %}</h2>
 {% include "netatlas/_history.html" %}
 {% endblock %}

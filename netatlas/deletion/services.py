@@ -34,6 +34,8 @@ from netatlas.devices.services import (
 from netatlas.history.services import capture_changes, rehearse
 from netatlas.places.models import Customer, Site
 from netatlas.places.services import delete_customer, delete_site
+from netatlas.tagging.models import Tag
+from netatlas.tagging.services import delete_tag
 
 _DELETERS = {
     "customer": (Customer, delete_customer),
@@ -47,6 +49,7 @@ _DELETERS = {
     "ip-address": (IpAddress, delete_ip_address),
     "cable": (Cable, delete_cable),
     "device-type": (DeviceType, delete_device_type),
+    "tag": (Tag, delete_tag),
 }
 DELETABLE_KINDS = tuple(_DELETERS)
 
@@ -157,6 +160,8 @@ def _effect(change) -> str:
         ("device", "device_type"): _("keeps its copy, without the Device Type"),
     }
     for field in change.fields:
+        if field.field == "tags":
+            return _("loses this Tag")
         if (change.kind, field.field) in effects:
             return effects[(change.kind, field.field)]
     return _("changes")

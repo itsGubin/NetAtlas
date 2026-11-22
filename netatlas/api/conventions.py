@@ -9,6 +9,7 @@ from rest_framework.response import Response
 from rest_framework.views import exception_handler as drf_exception_handler
 
 from netatlas.system.services import is_database_outage
+from netatlas.tagging.services import filter_by_tags
 
 PAGINATION_PARAMS = {"page", "page_size"}
 ERROR_CODES = {
@@ -43,6 +44,16 @@ def allowed_filters(request, *names):
     if unknown:
         raise ApiValidationError({name: [_("Unknown filter.")] for name in sorted(unknown)})
     return {name: filters[name] for name in names if name in filters}
+
+
+def with_tags(request, kind, items):
+    """The items carrying every `tag` in the query. A blank Tag is an error, like a typo."""
+    names = request.query_params.getlist("tag")
+    if not names:
+        return items
+    if not all(name.strip() for name in names):
+        raise ApiValidationError({"tag": [_("Enter a Tag name.")]})
+    return filter_by_tags(kind, items, names)
 
 
 def exception_handler(error, context):

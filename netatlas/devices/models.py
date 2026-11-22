@@ -2,10 +2,10 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
-from netatlas.history.models import TrackedModel
+from netatlas.tagging.models import TaggableModel
 
 
-class DeviceType(TrackedModel):
+class DeviceType(TaggableModel):
     """A reusable make and model. Devices copy from it, so edits never reach existing Devices."""
 
     history_kind = "device-type"
@@ -29,7 +29,7 @@ class DeviceType(TrackedModel):
         return f"{self.make} {self.model_name}"
 
 
-class Rack(TrackedModel):
+class Rack(TaggableModel):
     """A rack of mounting units within a Site, numbered from 1 at the bottom."""
 
     history_kind = "rack"
@@ -53,7 +53,7 @@ class Rack(TrackedModel):
         return self.name
 
 
-class Device(TrackedModel):
+class Device(TaggableModel):
     """Anything documented that has Interfaces or takes rack space, in exactly one Site."""
 
     class Kind(models.TextChoices):
@@ -112,7 +112,7 @@ class Device(TrackedModel):
         return self.name
 
 
-class Interface(TrackedModel):
+class Interface(TaggableModel):
     """A network connection point belonging to exactly one Device."""
 
     class Kind(models.TextChoices):
@@ -157,7 +157,7 @@ class Interface(TrackedModel):
         return f"{self.device.name} {self.name}"
 
 
-class Cable(TrackedModel):
+class Cable(TaggableModel):
     """A physical link joining exactly two Physical Interfaces, stored lowest ID first."""
 
     history_kind = "cable"

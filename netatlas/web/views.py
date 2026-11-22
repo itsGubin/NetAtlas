@@ -1,4 +1,5 @@
 from django import forms
+from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.http import Http404
 from django.shortcuts import redirect, render
@@ -90,6 +91,15 @@ from netatlas.places.services import (
     update_site,
 )
 from netatlas.system.services import get_system_status
+from netatlas.tagging.services import (
+    add_tag,
+    create_tag,
+    filter_by_tags,
+    list_tags,
+    remove_tag,
+    tag_usage,
+    update_tag,
+)
 
 
 def home(request):
@@ -363,7 +373,7 @@ def _rack_height(request) -> int:
 
 def _render_racks(request, errors=(), form=None):
     context = {
-        "racks": list_racks(request.user),
+        "racks": _with_tags(request, "rack", list_racks(request.user)),
         "sites": list_sites(request.user),
         "selected_site": _submitted_id(request, "site_id"),
         "errors": errors,
@@ -450,7 +460,7 @@ def _vlan_number(request) -> int:
 
 def _render_vlans(request, errors=(), form=None):
     context = {
-        "vlans": list_vlans(request.user),
+        "vlans": _with_tags(request, "vlan", list_vlans(request.user)),
         "sites": list_sites(request.user),
         "selected_site": _submitted_id(request, "site_id"),
         "errors": errors,
@@ -625,7 +635,7 @@ def interface_ip_addresses(request, interface_id):
 
 def _render_ip_addresses(request, errors=(), form=None):
     context = {
-        "ip_addresses": list_ip_addresses(request.user),
+        "ip_addresses": _with_tags(request, "ip-address", list_ip_addresses(request.user)),
         "sites": list_sites(request.user),
         "selected_site": _submitted_id(request, "site_id"),
         "errors": errors,
@@ -648,7 +658,7 @@ def _render_ip_address(request, address_id, errors=(), form=None):
 
 def _render_subnets(request, errors=(), form=None):
     context = {
-        "subnets": list_subnets(request.user),
+        "subnets": _with_tags(request, "subnet", list_subnets(request.user)),
         "sites": list_sites(request.user),
         "vlans": list_vlans(request.user),
         "selected_vlan": _submitted_id(request, "vlan_id"),
@@ -683,7 +693,8 @@ def _render_subnet(
 
 
 def cables(request):
-    return render(request, "netatlas/cables.html", {"cables": list_cables(request.user)})
+    shown = _with_tags(request, "cable", list_cables(request.user))
+    return render(request, "netatlas/cables.html", {"cables": shown})
 
 
 @require_http_methods(["GET", "POST"])
@@ -816,7 +827,7 @@ def _submitted_id(request, field: str, default=None):
 def _render_devices(request, errors=(), form=None):
     all_devices = list_devices(request.user)
     context = {
-        "devices": all_devices,
+        "devices": _with_tags(request, "device", all_devices),
         "sites": list_sites(request.user),
         "device_types": list_device_types(request.user),
         "hypervisors": all_devices,
@@ -905,7 +916,7 @@ def _device_type_values(request) -> dict:
 
 def _render_device_types(request, errors=(), form=None):
     context = {
-        "device_types": list_device_types(request.user),
+        "device_types": _with_tags(request, "device-type", list_device_types(request.user)),
         "errors": errors,
         "form": form or {"rack_height": 1},
     }
@@ -943,7 +954,8 @@ def _customer_choice(request) -> dict:
 
 
 def _render_customers(request, errors=(), name=""):
-    context = {"customers": list_customers(request.user), "errors": errors, "name": name}
+    customers_shown = _with_tags(request, "customer", list_customers(request.user))
+    context = {"customers": customers_shown, "errors": errors, "name": name}
     return render(request, "netatlas/customers.html", context, status=400 if errors else 200)
 
 
@@ -960,7 +972,7 @@ def _render_customer(request, customer_id, errors=(), name=None):
 
 def _render_sites(request, errors=(), name=""):
     context = {
-        "sites": list_sites(request.user),
+        "sites": _with_tags(request, "site", list_sites(request.user)),
         "customers": list_customers(request.user),
         "selected_customer": _submitted_id(request, "customer_id"),
         "errors": errors,
@@ -1052,6 +1064,7 @@ def _impact_rows(impacts) -> list[dict]:
         "ip-address": _("IP Address"),
         "cable": _("Cable"),
         "device-type": _("Device Type"),
+        "tag": _("Tag"),
     }
     return [
         {"kind": names[impact.kind], "label": impact.label, "effect": impact.effect}
@@ -1070,3 +1083,77 @@ def _render_delete(request, kind, item_id, errors=(), status=200):
         "errors": [*errors, *preview.blocked],
     }
     return render(request, "netatlas/delete_confirmation.html", context, status=status)
+
+
+def _with_tags(request, kind, items):
+    """The items carrying every Tag chosen in the list's filter."""
+    names = [name for name in request.GET.getlist("tag") if name.strip()]
+    return filter_by_tags(kind, items, names) if names else items
+
+
+@require_http_methods(["GET", "POST"])
+def tags(request):
+    if request.method == "GET":
+        return _render_tags(request)
+
+    require_editor(request.user)
+    name = request.POST.get("name", "")
+    try:
+        create_tag(request.user, name)
+    except ValidationError as error:
+        return _render_tags(request, errors=error.messages, name=name)
+    return redirect("web:tags")
+
+
+@require_http_methods(["GET", "POST"])
+def tag(request, tag_id):
+    if request.method == "GET":
+        return _render_tag(request, tag_id)
+
+    require_editor(request.user)
+    name = request.POST.get("name", "")
+    try:
+        update_tag(request.user, tag_id, name)
+    except ValidationError as error:
+        return _render_tag(request, tag_id, errors=error.messages, name=name)
+    return redirect("web:tag", tag_id=tag_id)
+
+
+@require_POST
+def item_tags(request, kind, item_id):
+    require_editor(request.user)
+    try:
+        add_tag(request.user, kind, item_id, request.POST.get("name", ""))
+    except ValidationError as error:
+        messages.error(request, " ".join(error.messages))
+    return redirect(f"web:{kind}", item_id)
+
+
+@require_POST
+def item_tag_remove(request, kind, item_id, tag_id):
+    remove_tag(request.user, kind, item_id, tag_id)
+    return redirect(f"web:{kind}", item_id)
+
+
+def _render_tags(request, errors=(), name=""):
+    context = {"tags": list_tags(request.user), "errors": errors, "name": name}
+    return render(request, "netatlas/tags.html", context, status=400 if errors else 200)
+
+
+def _render_tag(request, tag_id, errors=(), name=None):
+    usage = tag_usage(request.user, tag_id)
+    context = {
+        "tag": usage.tag,
+        "items": [
+            {
+                "kind": item.kind,
+                "label": item.label,
+                "url": reverse(f"web:{item.kind}", args=[item.id]),
+            }
+            for item in usage.items
+        ],
+        "entries": item_history(request.user, "tag", tag_id),
+        "errors": errors,
+        "name": usage.tag.name if name is None else name,
+    }
+    return render(request, "netatlas/tag.html", context, status=400 if errors else 200)

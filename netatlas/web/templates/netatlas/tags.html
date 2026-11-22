@@ -1,0 +1,25 @@
+{% extends "netatlas/base.html" %}{% load i18n %}
+{% block title %}{% translate "Tags" %} · {{ block.super }}{% endblock %}
+{% block content %}
+<h1>{% translate "Tags" %}</h1>
+{% include "netatlas/_errors.html" %}
+<table>
+  <thead>
+    <tr><th scope="col">{% translate "Tag" %}</th><th scope="col">{% translate "Items" %}</th></tr>
+  </thead>
+  <tbody>
+    {% for item in tags %}
+    <tr><td><a href="{% url 'web:tag' item.id %}">{{ item.name }}</a></td><td>{{ item.usage }}</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% if can_edit %}
+<h2>{% translate "Add Tag" %}</h2>
+<form method="post" action="{% url 'web:tags' %}">
+  {% csrf_token %}
+  <p><label>{% translate "Name" %} <input name="name" value="{{ name }}" required></label></p>
+  <button type="submit">{% translate "Add Tag" %}</button>
+</form>
+{% endif %}
+{% endblock %}

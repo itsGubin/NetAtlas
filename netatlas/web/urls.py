@@ -113,6 +113,20 @@ urlpatterns = [
         {"kind": "subnet"},
         name="subnet-delete",
     ),
+    path("tags/", views.tags, name="tags"),
+    path("tags/<int:tag_id>/", views.tag, name="tag"),
+    path(
+        "tags/<int:item_id>/delete/",
+        views.delete_confirmation,
+        {"kind": "tag"},
+        name="tag-delete",
+    ),
+    path("tagged/<slug:kind>/<int:item_id>/", views.item_tags, name="item-tags"),
+    path(
+        "tagged/<slug:kind>/<int:item_id>/<int:tag_id>/remove/",
+        views.item_tag_remove,
+        name="item-tag-remove",
+    ),
     path("cables/", views.cables, name="cables"),
     path("cables/<int:cable_id>/", views.cable, name="cable"),
     path(
