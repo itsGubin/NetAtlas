@@ -36,8 +36,11 @@ from netatlas.api.serializers import (
     DeviceTypeChangeSerializer,
     DeviceTypeSerializer,
     HistoryEntrySerializer,
+    InterfaceChangeSerializer,
+    InterfaceSerializer,
     NewDeviceSerializer,
     NewDeviceTypeSerializer,
+    NewInterfaceSerializer,
     NewSiteSerializer,
     NewTokenSerializer,
     NewUserSerializer,
@@ -55,14 +58,19 @@ from netatlas.api.serializers import (
 from netatlas.devices.services import (
     create_device,
     create_device_type,
+    create_interface,
     delete_device,
     delete_device_type,
+    delete_interface,
     get_device,
     get_device_type,
+    get_interface,
     list_device_types,
     list_devices,
+    list_interfaces,
     update_device,
     update_device_type,
+    update_interface,
     virtual_devices,
 )
 from netatlas.history.services import item_history
@@ -405,3 +413,53 @@ class VirtualDeviceListView(APIView):
         entries = virtual_devices(request.user, device_id)
         allowed_filters(request)
         return paginated(request, self, entries, asdict)
+
+
+class InterfaceListView(APIView):
+    @extend_schema(
+        operation_id="device_interfaces_list",
+        parameters=PAGINATION,
+        responses={200: page_of(InterfaceSerializer), **errors(400, 401, 403, 404)},
+    )
+    def get(self, request, device_id):
+        interfaces = list_interfaces(request.user, device_id)
+        allowed_filters(request)
+        return paginated(request, self, interfaces, asdict)
+
+    @extend_schema(
+        description="A Virtual Device can only have Virtual Interfaces.",
+        request=NewInterfaceSerializer,
+        responses={201: InterfaceSerializer, **errors(400, 401, 403, 404)},
+    )
+    def post(self, request, device_id):
+        require_editor(request.user)
+        body = NewInterfaceSerializer(data=request.data)
+        body.is_valid(raise_exception=True)
+        interface = create_interface(request.user, device_id, **body.validated_data)
+        return Response(asdict(interface), status=http_status.HTTP_201_CREATED)
+
+
+class InterfaceDetailView(APIView):
+    @extend_schema(responses={200: InterfaceSerializer, **errors(401, 403, 404)})
+    def get(self, request, interface_id):
+        return Response(asdict(get_interface(request.user, interface_id)))
+
+    @extend_schema(
+        description="The kind is locked while the Interface is in a LAG or is a LAG with members.",
+        request=InterfaceChangeSerializer,
+        responses={200: InterfaceSerializer, **errors(400, 401, 403, 404)},
+    )
+    def patch(self, request, interface_id):
+        require_editor(request.user)
+        body = InterfaceChangeSerializer(data=request.data)
+        body.is_valid(raise_exception=True)
+        interface = update_interface(request.user, interface_id, **body.validated_data)
+        return Response(asdict(interface))
+
+    @extend_schema(
+        description="Deleting a LAG keeps its members, without a LAG.",
+        responses={204: None, **errors(401, 403, 404)},
+    )
+    def delete(self, request, interface_id):
+        delete_interface(request.user, interface_id)
+        return Response(status=http_status.HTTP_204_NO_CONTENT)

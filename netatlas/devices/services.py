@@ -24,6 +24,7 @@ _RANGE = re.compile(r"\[(\d{1,9})-(\d{1,9})\]")
 # Control characters are refused too: Postgres cannot store NUL in JSON.
 _NAME = re.compile(r"[^\s\x00-\x1f\x7f]{1,64}")
 _UPDATABLE_DEVICE_FIELDS = {"name", "site_id", "parent_id", "rack_height"}
+_UPDATABLE_INTERFACE_FIELDS = {"name", "kind", "lag_id"}
 # Any fixed number. It identifies this lock among Postgres advisory locks.
 _DEVICE_TREE_LOCK = 7_400_801
 
@@ -40,8 +41,11 @@ class DeviceTypeSummary:
 @dataclass(frozen=True)
 class InterfaceSummary:
     id: int
+    device_id: int
     name: str
     kind: str
+    lag_id: int | None
+    lag_name: str | None
 
 
 @dataclass(frozen=True)
@@ -124,7 +128,7 @@ def list_devices(
     require_role(actor)
     devices = (
         Device.objects.select_related("site", "parent", "device_type")
-        .prefetch_related("interfaces")
+        .prefetch_related("interfaces__lag")
         .order_by("name", "pk")
     )
     if site_id is not None:
@@ -206,6 +210,89 @@ def delete_device(actor, device_id: int) -> None:
         delete_item(actor, device)
 
 
+def list_interfaces(actor, device_id: int) -> list[InterfaceSummary]:
+    require_role(actor)
+    return _device_summary(_find_device(device_id)).interfaces
+
+
+def get_interface(actor, interface_id: int) -> InterfaceSummary:
+    require_role(actor)
+    return _interface_summary(_find_interface(interface_id))
+
+
+def create_interface(
+    actor, device_id: int, name: str, kind: str, lag_id: int | None = None
+) -> InterfaceSummary:
+    require_editor(actor)
+    with transaction.atomic():
+        _lock_device_tree()
+        device = _find_device(device_id)
+        _check_interface_rules(device, kind, lag_id)
+        interface = create_item(
+            actor, Interface, device=device, name=name, kind=kind, lag_id=lag_id
+        )
+    return _interface_summary(interface)
+
+
+def update_interface(actor, interface_id: int, **values) -> InterfaceSummary:
+    """Change an Interface. Its kind is locked while it is part of a LAG relationship."""
+    require_editor(actor)
+    unknown = set(values) - _UPDATABLE_INTERFACE_FIELDS
+    if unknown:
+        raise TypeError(f"Cannot update {', '.join(sorted(unknown))} on an Interface")
+
+    with transaction.atomic():
+        _lock_device_tree()
+        interface = _find_interface(interface_id)
+        kind = values.get("kind", interface.kind)
+        if kind != interface.kind and (interface.lag_id or interface.members.exists()):
+            message = _("Remove this Interface's LAG membership before changing its kind.")
+            raise _field_error("kind", message)
+        _check_interface_rules(interface.device, kind, values.get("lag_id", interface.lag_id))
+        update_item(actor, interface, **values)
+    return _interface_summary(_find_interface(interface_id))
+
+
+def delete_interface(actor, interface_id: int) -> None:
+    """Delete an Interface. The members of a deleted LAG stay, without a LAG."""
+    require_editor(actor)
+    with transaction.atomic():
+        _lock_device_tree()
+        delete_item(actor, _find_interface(interface_id))
+
+
+def _check_interface_rules(device, kind: str, lag_id: int | None) -> None:
+    if device.kind == Device.Kind.VIRTUAL and kind != Interface.Kind.VIRTUAL:
+        raise _field_error("kind", _("A Virtual Device can only have Virtual Interfaces."))
+    if lag_id is None:
+        return
+    if kind != Interface.Kind.PHYSICAL:
+        raise _field_error("lag_id", _("Only a Physical Interface can join a LAG."))
+    lag = _reference(Interface, lag_id, "lag_id")
+    if lag.kind != Interface.Kind.LAG or lag.device_id != device.pk:
+        raise _field_error("lag_id", _("Choose a LAG on the same Device."))
+
+
+def _find_interface(interface_id: int):
+    interface = (
+        Interface.objects.select_related("device", "lag").filter(pk=interface_id).first()
+    )
+    if interface is None:
+        raise Http404
+    return interface
+
+
+def _interface_summary(interface) -> InterfaceSummary:
+    return InterfaceSummary(
+        id=interface.pk,
+        device_id=interface.device_id,
+        name=interface.name,
+        kind=interface.kind,
+        lag_id=interface.lag_id,
+        lag_name=interface.lag.name if interface.lag_id else None,
+    )
+
+
 def _lock_device_tree() -> None:
     """Serialize Device writes, so concurrent moves cannot form a cycle or split a tree."""
     with connection.cursor() as cursor:
@@ -256,7 +343,7 @@ def _field_error(field: str, message: str) -> ValidationError:
 def _find_device(device_id: int):
     device = (
         Device.objects.select_related("site", "parent", "device_type")
-        .prefetch_related("interfaces")
+        .prefetch_related("interfaces__lag")
         .filter(pk=device_id)
         .first()
     )
@@ -278,7 +365,7 @@ def _device_summary(device) -> DeviceSummary:
         device_type_name=str(device.device_type) if device.device_type else None,
         rack_height=device.rack_height,
         interfaces=[
-            InterfaceSummary(id=interface.pk, name=interface.name, kind=interface.kind)
+            _interface_summary(interface)
             for interface in sorted(device.interfaces.all(), key=lambda i: i.pk)
         ],
     )

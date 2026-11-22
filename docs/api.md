@@ -82,6 +82,15 @@ Every error has the same shape. `fields` lists messages per field and is empty f
 - `GET /api/devices/<id>/virtual-devices/` lists everything running on a Device, depth first, with its `depth`.
 - Deleting a Device deletes its Interfaces. A Hypervisor with Virtual Devices, and a Site with Devices, cannot be deleted.
 
+## Interfaces
+
+`/api/devices/<id>/interfaces/` lists and creates a Device's Interfaces. `/api/interfaces/<id>/` reads, changes (`PATCH`) and deletes one. Every Role can read. Admins and Editors can write.
+
+- `kind` is `physical`, `virtual` or `lag`. A Virtual Device can only have Virtual Interfaces. Names are unique within a Device.
+- `lag_id` bundles a Physical Interface into a LAG of the same Device.
+- `kind` cannot change while the Interface is in a LAG, or is a LAG with members.
+- Deleting a LAG keeps its members, without a LAG, and records that in their History.
+
 ## Adding a documented item
 
 - Inherit from `TrackedModel`, and set `history_kind` and any `history_exclude` fields.

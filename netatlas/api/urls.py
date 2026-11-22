@@ -32,4 +32,14 @@ urlpatterns = [
         views.VirtualDeviceListView.as_view(),
         name="device-virtual-devices",
     ),
+    path(
+        "devices/<int:device_id>/interfaces/",
+        views.InterfaceListView.as_view(),
+        name="device-interfaces",
+    ),
+    path(
+        "interfaces/<int:interface_id>/",
+        views.InterfaceDetailView.as_view(),
+        name="interface-detail",
+    ),
 ]
