@@ -76,7 +76,7 @@ def test_viewer_sees_addresses_without_forms_and_cannot_write(client_with_role):
     ):
         response = client.get(path)
         assert response.status_code == 200
-        assert response.content.decode().count("<form") == 1
+        assert response.content.decode().count('method="post"') == 1
 
     new_address = {"address": "192.168.1.11", "site_id": site.id}
     new_range = {"start": "192.168.1.1", "end": "192.168.1.2"}

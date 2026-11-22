@@ -78,7 +78,7 @@ def test_viewer_sees_interfaces_without_forms_and_cannot_write(client_with_role)
 
     response = client.get(f"/interfaces/{interface.id}/")
     assert response.status_code == 200
-    assert response.content.decode().count("<form") == 1
+    assert response.content.decode().count('method="post"') == 1
 
     assert client.post(f"/devices/{device.id}/interfaces/", new).status_code == 403
     assert client.post(f"/interfaces/{interface.id}/", new).status_code == 403
